@@ -38,5 +38,11 @@ int main()
         printf("Line %d: %s\n", bm_logs[i].line, bm_logs[i].message);
     }
 
+    puts("----");
+    printf("Genre: %s\n", chart.meta.genre);
+    printf("Title: %s\n", chart.meta.title);
+    printf("Artist: %s\n", chart.meta.artist);
+    printf("Subartist: %s\n", chart.meta.subartist);
+
     return 0;
 }

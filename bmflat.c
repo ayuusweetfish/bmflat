@@ -40,9 +40,14 @@ static inline int parse_player_num(const char *s, int line)
     if (s[0] >= '1' && s[0] <= '3' && s[1] == '\0') {
         return s[0] - '0';
     } else {
-        emit_log(line, "Unrecognized player mode: %s", s);
+        emit_log(line, "Unrecognized player mode: %s; ignored", s);
         return -1;
     }
+}
+
+static inline char *parse_simple_copy(const char *s, int line)
+{
+    return strdup(s);
 }
 
 int bm_load(struct bm_chart *chart, const char *_source)
@@ -71,7 +76,7 @@ int bm_load(struct bm_chart *chart, const char *_source)
 
         // Skip the # character
         char *s = source + ptr + 1;
-        int line_len = end - ptr;
+        int line_len = end - ptr - 1;
 
         if (line_len >= 6 && isdigit(s[0]) && isdigit(s[1]) && isdigit(s[2]) &&
             isdigit(s[3]) && isdigit(s[4]) && s[5] == ':')
@@ -83,12 +88,48 @@ int bm_load(struct bm_chart *chart, const char *_source)
             while (arg < line_len && !isspace(s[arg])) arg++;
             s[arg++] = '\0';
             while (arg < line_len && isspace(s[arg])) arg++;
-            if (strcmp(s, "PLAYER") == 0)
-                chart->meta.player_num = parse_player_num(s + arg, line);
+
+            if (arg >= line_len) {
+                emit_log(line, "Command requires non-empty arguments, ignoring");
+                continue;
+            }
+
+            #define checked_assign(_var, _func, _msg) do { \
+                int x = _func(s + arg, line); \
+                if (x != -1) { \
+                    if ((_var) != -1) emit_log(line, _msg); \
+                    (_var) = x; \
+                } \
+            } while (0)
+
+            #define checked_strdup(_var, _func, _msg) do { \
+                char *x = strdup(s + arg); \
+                /* TODO: Handle cases of memory exhaustion? */ \
+                if (x != NULL) { \
+                    if ((_var) != -1) { free(_var); emit_log(line, _msg); } \
+                    (_var) = x; \
+                } \
+            } while (0)
+
+            if (strcmp(s, "PLAYER") == 0) {
+                checked_assign(
+                    chart->meta.player_num, parse_player_num,
+                    "Multiple PLAYER commands, overwritten");
+            } else if (strcmp(s, "GENRE") == 0) {
+                checked_strdup(
+                    chart->meta.genre, parse_simple_copy,
+                    "Multiple GENRE commands, overwritten");
+            } else {
+                emit_log(line, "Unrecognized command %s, ignoring", s);
+            }
         }
     }
 
     if (chart->meta.player_num == -1) chart->meta.player_num = 1;
+    if (chart->meta.genre == -1) chart->meta.genre = "(unknown)";
+    if (chart->meta.title == -1) chart->meta.title = "(unknown)";
+    if (chart->meta.artist == -1) chart->meta.artist = "(unknown)";
+    if (chart->meta.subartist == -1) chart->meta.subartist = "(unknown)";
     if (chart->meta.play_level == -1) chart->meta.play_level = 3;
     if (chart->meta.judge_rank == -1) chart->meta.judge_rank = 3;
     if (chart->meta.gauge_total == -1) chart->meta.gauge_total = 160;

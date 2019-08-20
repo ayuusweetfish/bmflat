@@ -81,6 +81,33 @@ int main()
             chart.tables.stop[n.value]);
     }
 
+    printf("BGA\n");
+    for (int j = 0; j < chart.tracks.bga_base.note_count; j++) {
+        struct bm_note n = chart.tracks.bga_base.notes[j];
+        printf("%03d %03d %c%c (%s)\n",
+            n.bar, (int)(n.beat * 1000 + 0.5f),
+            base36[n.value / 36], base36[n.value % 36],
+            chart.tables.bmp[n.value]);
+    }
+
+    printf("BGA Layer\n");
+    for (int j = 0; j < chart.tracks.bga_layer.note_count; j++) {
+        struct bm_note n = chart.tracks.bga_layer.notes[j];
+        printf("%03d %03d %c%c (%s)\n",
+            n.bar, (int)(n.beat * 1000 + 0.5f),
+            base36[n.value / 36], base36[n.value % 36],
+            chart.tables.bmp[n.value]);
+    }
+
+    printf("BGA Poor\n");
+    for (int j = 0; j < chart.tracks.bga_poor.note_count; j++) {
+        struct bm_note n = chart.tracks.bga_poor.notes[j];
+        printf("%03d %03d %c%c (%s)\n",
+            n.bar, (int)(n.beat * 1000 + 0.5f),
+            base36[n.value / 36], base36[n.value % 36],
+            chart.tables.bmp[n.value]);
+    }
+
     for (int i = 0; i < 50; i++) if (chart.tracks.fixed[i].note_count > 0) {
         printf("Track %d\n", i + 10);
         for (int j = 0; j < chart.tracks.fixed[i].note_count; j++) {

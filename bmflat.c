@@ -144,10 +144,13 @@ int bm_load(struct bm_chart *chart, const char *_source)
                 }
             } else if (track == 4) {
                 // BGA
+                parse_track(line, s + 6, &chart->tracks.bga_base, bar);
             } else if (track == 6) {
                 // BGA poor
+                parse_track(line, s + 6, &chart->tracks.bga_poor, bar);
             } else if (track == 7) {
                 // BGA layer
+                parse_track(line, s + 6, &chart->tracks.bga_layer, bar);
             } else if (track == 8) {
                 // Extended tempo change
                 parse_track(line, s + 6, &chart->tracks.ex_tempo, bar);

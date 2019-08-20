@@ -197,10 +197,6 @@ int bm_load(struct bm_chart *chart, const char *_source)
             } else if (track == 3) {
                 // Tempo change
                 parse_track(line, s + 6, &chart->tracks.tempo, bar);
-                for (int i = 0; i < chart->tracks.tempo.note_count; i++) {
-                    int x = chart->tracks.tempo.notes[i].value;
-                    chart->tracks.tempo.notes[i].value = (x / 36) * 16 + (x % 36);
-                }
             } else if (track == 4) {
                 // BGA
                 parse_track(line, s + 6, &chart->tracks.bga_base, bar);
@@ -349,7 +345,25 @@ int bm_load(struct bm_chart *chart, const char *_source)
         }
     }
 
+    // Postprocessing
+
+    // Reinterpret base-36 as base-16
+    for (int i = 0; i < chart->tracks.tempo.note_count; i++) {
+        int x = chart->tracks.tempo.notes[i].value;
+        chart->tracks.tempo.notes[i].value = (x / 36) * 16 + (x % 36);
+    }
+
+    // Sort notes and handle coincident overwrites
     for (int i = 0; i < 60; i++) sort_track(&chart->tracks.fixed[i]);
+    sort_track(&chart->tracks.tempo);
+    sort_track(&chart->tracks.bga_base);
+    sort_track(&chart->tracks.bga_layer);
+    sort_track(&chart->tracks.bga_poor);
+    sort_track(&chart->tracks.ex_tempo);
+    sort_track(&chart->tracks.stop);
+
+    // Handle long notes
+    // NOTE: #LNTYPE is not supported and is fixed to LNTYPE 1
     for (int i = 0; i < 20; i++)    // Indices 11-29
         for (int j = 0; j < chart->tracks.fixed[i].note_count; j++) {
             if (chart->tracks.fixed[i].notes[j].value == lnobj)
@@ -361,12 +375,6 @@ int bm_load(struct bm_chart *chart, const char *_source)
                 chart->tracks.fixed[i].notes[j - 1].value)
                 chart->tracks.fixed[i].notes[j].value = -1;
         }
-    sort_track(&chart->tracks.tempo);
-    sort_track(&chart->tracks.bga_base);
-    sort_track(&chart->tracks.bga_layer);
-    sort_track(&chart->tracks.bga_poor);
-    sort_track(&chart->tracks.ex_tempo);
-    sort_track(&chart->tracks.stop);
 
     #define check_default(_var, _name, _initial, _val) do { \
         if ((_var) == (_initial)) { \

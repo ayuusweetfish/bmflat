@@ -15,10 +15,9 @@ char *read_file(const char *path)
         long len = ftell(f);
         if (fseek(f, 0, SEEK_SET) != 0) break;
         if ((buf = (char *)malloc(len)) == NULL) break;
-        if (fread(buf, len, 1, f) != 1) { buf = NULL; break; }
+        if (fread(buf, len, 1, f) != 1) { free(buf); buf = NULL; break; }
     } while (0);
 
-    if (buf) free(buf);
     fclose(f);
     return buf;
 }

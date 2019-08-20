@@ -19,6 +19,7 @@
 
 #00111:03030303
 This means 4 objects at the left of 1 player side in 002 track. This object is assigned to wave No.03 which was defined by #WAV03 xxxx.wav. And this 4 objects are arranged evenly in this track.
+#00160:00
 
 Please try the following patterns.
 

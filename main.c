@@ -46,13 +46,13 @@ int main()
 
     const char *base36 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     for (int i = 0; i < 1296; i++)
-        if (chart.table.wav[i] != NULL)
+        if (chart.tables.wav[i] != NULL)
             printf("Wave %c%c: %s\n",
-                base36[i / 36], base36[i % 36], chart.table.wav[i]);
+                base36[i / 36], base36[i % 36], chart.tables.wav[i]);
     for (int i = 0; i < 1296; i++)
-        if (chart.table.bmp[i] != NULL)
+        if (chart.tables.bmp[i] != NULL)
             printf("Bitmap %c%C: %s\n",
-                base36[i / 36], base36[i % 36], chart.table.bmp[i]);
+                base36[i / 36], base36[i % 36], chart.tables.bmp[i]);
 
     return 0;
 }

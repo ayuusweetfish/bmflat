@@ -58,7 +58,7 @@ int bm_load(struct bm_chart *chart, const char *_source)
     chart->meta.title = NULL;
     chart->meta.artist = NULL;
     chart->meta.subartist = NULL;
-    memset(&chart->table, NULL, sizeof chart->table);
+    memset(&chart->tables, NULL, sizeof chart->tables);
 
     reset_logs();
     int len = strlen(source);
@@ -149,11 +149,11 @@ int bm_load(struct bm_chart *chart, const char *_source)
                     "Multiple TOTAL commands, overwritten");
             } else if (memcmp(s, "WAV", 3) == 0 && isbase36(s[3]) && isbase36(s[4])) {
                 int index = base36(s[3], s[4]);
-                checked_strdup(chart->table.wav[index],
+                checked_strdup(chart->tables.wav[index],
                     "Wave %c%c specified multiple times, overwritten", s[3], s[4]);
             } else if (memcmp(s, "BMP", 3) == 0 && isbase36(s[3]) && isbase36(s[4])) {
                 int index = base36(s[3], s[4]);
-                checked_strdup(chart->table.bmp[index],
+                checked_strdup(chart->tables.bmp[index],
                     "Bitmap %c%c specified multiple times, overwritten", s[3], s[4]);
             } else {
                 emit_log(line, "Unrecognized command %s, ignoring", s);

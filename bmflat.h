@@ -23,12 +23,13 @@ struct bm_tables {
 };
 
 struct bm_note {
-    int time;   // In 192ths of a beat
+    float beat; // In fractions of the bar
+    short bar;
     short value;
 };
 
 struct bm_track {
-    int note_count;
+    int note_count, note_cap;
     struct bm_note *notes;
 };
 

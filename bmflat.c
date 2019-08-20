@@ -49,6 +49,44 @@ static inline int base36(char c1, char c2)
         (c2 <= '9' ? c2 - '0' : c2 - 'A' + 10);
 }
 
+static inline void add_note(struct bm_track *track, short bar, float beat, short value)
+{
+    if (track->note_cap <= track->note_count) {
+        track->note_cap = (track->note_cap == 0 ? 8 : (track->note_cap << 1));
+        track->notes = (struct bm_note *)
+            realloc(track->notes, track->note_cap * sizeof(struct bm_note));
+    }
+    track->notes[track->note_count].bar = bar;
+    track->notes[track->note_count].beat = beat;
+    track->notes[track->note_count++].value = value;
+}
+
+static inline void parse_track(int line, char *s, struct bm_track *track, short bar)
+{
+    int count = 0;
+    for (char *p = s; *p != '\0'; p++) count += (!isspace(*p));
+    count /= 2;
+
+    for (int p = 0, q, i = 0; s[p] != '\0'; p = q + 1) {
+        while (isspace(s[p]) && s[p] != '\0') p++;
+        if (s[p] == '\0') break;
+        q = p + 1;
+        while (isspace(s[q]) && s[q] != '\0') q++;
+        if (s[q] == '\0') {
+            emit_log(line, "Extraneous trailing character %c, ignoring", s[p]);
+            break;
+        }
+        if (!isbase36(s[p]) || !isbase36(s[q])) {
+            emit_log(line, "Invalid base-36 index %c%c at column %d, ignoring",
+                s[p], s[q], p + 8);
+            continue;
+        }
+        int value = base36(s[p], s[q]);
+        if (value != 0) add_note(track, bar, (float)i / count, value);
+        i++;
+    }
+}
+
 int bm_load(struct bm_chart *chart, const char *_source)
 {
     char *source = strdup(_source);
@@ -108,6 +146,7 @@ int bm_load(struct bm_chart *chart, const char *_source)
                 // Stop
             } else if (track >= 10 && track <= 59) {
                 // Fixed
+                parse_track(line, s + 6, &chart->tracks.fixed[track - 10], bar);
             } else {
                 emit_log(line, "Unknown track %c%c, ignoring", s[3], s[4]);
             }

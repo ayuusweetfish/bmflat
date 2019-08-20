@@ -43,6 +43,7 @@ int main()
     printf("Title: %s\n", chart.meta.title);
     printf("Artist: %s\n", chart.meta.artist);
     printf("Subartist: %s\n", chart.meta.subartist);
+    putchar('\n');
 
     const char *base36 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     for (int i = 0; i < 1296; i++)
@@ -53,6 +54,17 @@ int main()
         if (chart.tables.bmp[i] != NULL)
             printf("Bitmap %c%C: %s\n",
                 base36[i / 36], base36[i % 36], chart.tables.bmp[i]);
+    putchar('\n');
+
+    for (int i = 0; i < 50; i++) if (chart.tracks.fixed[i].note_count > 0) {
+        printf("Track %d\n", i + 10);
+        for (int j = 0; j < chart.tracks.fixed[i].note_count; j++) {
+            struct bm_note n = chart.tracks.fixed[i].notes[j];
+            printf("%03d %03d %c%c\n",
+                n.bar, (int)(n.beat * 1000 + 0.5f),
+                base36[n.value / 36], base36[n.value % 36]);
+        }
+    }
 
     return 0;
 }

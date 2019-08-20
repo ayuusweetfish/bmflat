@@ -16,7 +16,7 @@ struct bm_metadata {
     int gauge_total;
 };
 
-struct bm_table {
+struct bm_tables {
 #define BM_INDEX_MAX    1296
     char *wav[BM_INDEX_MAX];
     char *bmp[BM_INDEX_MAX];
@@ -24,7 +24,7 @@ struct bm_table {
 
 struct bm_chart {
     struct bm_metadata meta;
-    struct bm_table table;
+    struct bm_tables tables;
 };
 
 #define BM_MSG_LEN  64

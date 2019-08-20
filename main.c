@@ -52,7 +52,7 @@ int main()
     printf("Play Background: %s\n", chart.meta.back_bmp);
     putchar('\n');
 
-    const char *base36 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const char *base36 = "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ" + 1;
     for (int i = 0; i < 1296; i++)
         if (chart.tables.wav[i] != NULL)
             printf("Wave %c%c: %s\n",
@@ -131,14 +131,14 @@ int main()
         }
     }
 
-    for (int i = 0; i < 50; i++) if (chart.tracks.fixed[i].note_count > 0) {
+    for (int i = 0; i < 60; i++) if (chart.tracks.fixed[i].note_count > 0) {
         printf("Track %d\n", i + 10);
         for (int j = 0; j < chart.tracks.fixed[i].note_count; j++) {
             struct bm_note n = chart.tracks.fixed[i].notes[j];
             printf("%03d %03d %c%c (%s)\n",
                 n.bar, (int)(n.beat * 1000 + 0.5f),
                 base36[n.value / 36], base36[n.value % 36],
-                chart.tables.wav[n.value]);
+                n.value == -1 ? "release" : chart.tables.wav[n.value]);
         }
     }
 

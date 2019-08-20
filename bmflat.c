@@ -2,6 +2,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -63,11 +64,6 @@ static inline void add_note(struct bm_track *track, short bar, float beat, short
 
 static inline void parse_track(int line, char *s, struct bm_track *track, short bar)
 {
-    // TODO: After sorting the later notes should overwrite
-    // previous ones at the same positions
-    if (track->note_count > 0)
-        emit_log(line, "Track already defined previously, merging all notes");
-
     int count = 0;
     for (char *p = s; *p != '\0'; p++) count += (!isspace(*p));
     count /= 2;
@@ -117,6 +113,7 @@ int bm_load(struct bm_chart *chart, const char *_source)
 
     // Temporary storage
     int bg_index[BM_BARS_COUNT] = { 0 };
+    bool track_appeared[BM_BARS_COUNT][60] = { false };
 
     for (; ptr != len; ptr = ++next, line++) {
         // Advance to the next line break
@@ -142,6 +139,13 @@ int bm_load(struct bm_chart *chart, const char *_source)
             // Track data
             int bar = s[0] * 100 + s[1] * 10 + s[2] - '0' * 111;
             int track = s[3] * 10 + s[4] - '0' * 11;
+
+            // TODO: After sorting the later notes should overwrite
+            // previous ones at the same positions
+            if (track >= 3 && track <= 59 && track != 5 && track_appeared[bar][track])
+                emit_log(line, "Track already defined previously, merging all notes");
+            track_appeared[bar][track] = true;
+
             if (track == 2) {
                 // Time signature
                 errno = 0;

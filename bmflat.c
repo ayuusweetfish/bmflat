@@ -109,6 +109,9 @@ int bm_load(struct bm_chart *chart, const char *_source)
     int len = strlen(source);
     int ptr = 0, next = 0, line = 1;
 
+    // Temporary storage
+    int bg_index[BM_BARS_COUNT] = { 0 };
+
     for (; ptr != len; ptr = ++next, line++) {
         // Advance to the next line break
         while (!is_space_or_linebreak(source[next])) next++;
@@ -174,6 +177,14 @@ int bm_load(struct bm_chart *chart, const char *_source)
             } else if (track >= 10 && track <= 59) {
                 // Fixed
                 parse_track(line, s + 6, &chart->tracks.fixed[track - 10], bar);
+            } else if (track == 1) {
+                if (bg_index[bar] == BM_BGM_TRACKS) {
+                    emit_log(line, "Too many background tracks (more than %d) "
+                        "for bar %03d, ignoring", BM_BGM_TRACKS, bar);
+                } else {
+                    parse_track(line, s + 6, &chart->tracks.background[bg_index[bar]], bar);
+                    bg_index[bar]++;
+                }
             } else {
                 emit_log(line, "Unknown track %c%c, ignoring", s[3], s[4]);
             }

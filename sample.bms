@@ -25,6 +25,7 @@
 
 <Example>
 
+#00101:01
 #00111:03030303
 This means 4 objects at the left of 1 player side in 002 track. This object is assigned to wave No.03 which was defined by #WAV03 xxxx.wav. And this 4 objects are arranged evenly in this track.
 #00160:00
@@ -32,6 +33,8 @@ This means 4 objects at the left of 1 player side in 002 track. This object is a
 #00108:00000001
 #00109:000101
 #00103:00FE
+#00101:0002
+#00101:0001
 
 Please try the following patterns.
 
@@ -44,3 +47,6 @@ Please try the following patterns.
 #00204:BM
 #00206:00BM
 #00207:0000BM
+#00201:00
+#00201:00
+#00201:AA

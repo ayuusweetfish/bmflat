@@ -56,6 +56,31 @@ int main()
                 base36[i / 36], base36[i % 36], chart.tables.bmp[i]);
     putchar('\n');
 
+    printf("Tempo\n");
+    for (int j = 0; j < chart.tracks.tempo.note_count; j++) {
+        struct bm_note n = chart.tracks.tempo.notes[j];
+        printf("%03d %03d %d\n",
+            n.bar, (int)(n.beat * 1000 + 0.5f), n.value);
+    }
+
+    printf("Ext-tempo\n");
+    for (int j = 0; j < chart.tracks.ex_tempo.note_count; j++) {
+        struct bm_note n = chart.tracks.ex_tempo.notes[j];
+        printf("%03d %03d %c%c (%g)\n",
+            n.bar, (int)(n.beat * 1000 + 0.5f),
+            base36[n.value / 36], base36[n.value % 36],
+            chart.tables.tempo[n.value]);
+    }
+
+    printf("Stop\n");
+    for (int j = 0; j < chart.tracks.stop.note_count; j++) {
+        struct bm_note n = chart.tracks.stop.notes[j];
+        printf("%03d %03d %c%c (%d)\n",
+            n.bar, (int)(n.beat * 1000 + 0.5f),
+            base36[n.value / 36], base36[n.value % 36],
+            chart.tables.stop[n.value]);
+    }
+
     for (int i = 0; i < 50; i++) if (chart.tracks.fixed[i].note_count > 0) {
         printf("Track %d\n", i + 10);
         for (int j = 0; j < chart.tracks.fixed[i].note_count; j++) {

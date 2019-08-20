@@ -99,7 +99,10 @@ int bm_load(struct bm_chart *chart, const char *_source)
     chart->meta.play_level = -1;
     chart->meta.judge_rank = -1;
     chart->meta.gauge_total = -1;
-    memset(&chart->tables, 0, sizeof chart->tables);
+    memset(&chart->tables.wav, 0, sizeof chart->tables.wav);
+    memset(&chart->tables.bmp, 0, sizeof chart->tables.bmp);
+    for (int i = 0; i < BM_INDEX_MAX; i++) chart->tables.tempo[i] = -1;
+    memset(&chart->tables.stop, -1, sizeof chart->tables.stop);
     memset(&chart->tracks, 0, sizeof chart->tracks);
 
     reset_logs();
@@ -134,6 +137,11 @@ int bm_load(struct bm_chart *chart, const char *_source)
                 // Time signature
             } else if (track == 3) {
                 // Tempo change
+                parse_track(line, s + 6, &chart->tracks.tempo, bar);
+                for (int i = 0; i < chart->tracks.tempo.note_count; i++) {
+                    int x = chart->tracks.tempo.notes[i].value;
+                    chart->tracks.tempo.notes[i].value = (x / 36) * 16 + (x % 36);
+                }
             } else if (track == 4) {
                 // BGA
             } else if (track == 6) {
@@ -142,8 +150,10 @@ int bm_load(struct bm_chart *chart, const char *_source)
                 // BGA layer
             } else if (track == 8) {
                 // Extended tempo change
+                parse_track(line, s + 6, &chart->tracks.ex_tempo, bar);
             } else if (track == 9) {
                 // Stop
+                parse_track(line, s + 6, &chart->tracks.stop, bar);
             } else if (track >= 10 && track <= 59) {
                 // Fixed
                 parse_track(line, s + 6, &chart->tracks.fixed[track - 10], bar);
@@ -171,6 +181,18 @@ int bm_load(struct bm_chart *chart, const char *_source)
                 } else { \
                     emit_log(line, "Invalid integral value, should be " \
                         "between %d and %d (inclusive)", (_min) ,(_max)); \
+                } \
+            } while (0)
+
+            #define checked_parse_float(_var, _min, _max, ...) do { \
+                errno = 0; \
+                float x = strtof(s + arg, NULL); \
+                if (errno != EINVAL && x >= (_min) && x <= (_max)) { \
+                    if ((_var) != -1) emit_log(line, __VA_ARGS__); \
+                    (_var) = x; \
+                } else { \
+                    emit_log(line, "Invalid integral value, should be " \
+                        "between %g and %g (inclusive)", (_min) ,(_max)); \
                 } \
             } while (0)
 
@@ -219,6 +241,16 @@ int bm_load(struct bm_chart *chart, const char *_source)
                 int index = base36(s[3], s[4]);
                 checked_strdup(chart->tables.bmp[index],
                     "Bitmap %c%c specified multiple times, overwritten", s[3], s[4]);
+            } else if (memcmp(s, "BPM", 3) == 0 && isbase36(s[3]) && isbase36(s[4])) {
+                int index = base36(s[3], s[4]);
+                checked_parse_float(chart->tables.tempo[index],
+                    1, 999,
+                    "Tempo %c%c specified multiple times, overwritten", s[3], s[4]);
+            } else if (memcmp(s, "STOP", 4) == 0 && isbase36(s[4]) && isbase36(s[5])) {
+                int index = base36(s[4], s[5]);
+                checked_parse_int(chart->tables.stop[index],
+                    0, 32767,
+                    "Stop %c%c specified multiple times, overwritten", s[4], s[5]);
             } else {
                 emit_log(line, "Unrecognized command %s, ignoring", s);
             }

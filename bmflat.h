@@ -6,10 +6,14 @@ extern "C" {
 #endif
 
 struct bm_metadata {
+    int player_num;
     char *genre;
     char *title;
     char *artist;
     char *subartist;
+    int play_level;
+    int judge_rank;
+    int gauge_total;
 };
 
 struct bm_chart {

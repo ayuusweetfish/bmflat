@@ -1,7 +1,8 @@
-#PLAYER 1
+#PLAYER  1  
 #GENRE Genre
 #TITLE Example
 #ARTIST Artist
+    #SUBARTIST Subartist
 #BPM 116
 #PLAYLEVEL 9
 #RANK 3

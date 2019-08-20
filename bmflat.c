@@ -127,6 +127,9 @@ int bm_load(struct bm_chart *chart, const char *_source)
     chart->meta.play_level = -1;
     chart->meta.judge_rank = -1;
     chart->meta.gauge_total = -1;
+    chart->meta.stage_file = NULL;
+    chart->meta.banner = NULL;
+    chart->meta.back_bmp = NULL;
     memset(&chart->tables.wav, 0, sizeof chart->tables.wav);
     memset(&chart->tables.bmp, 0, sizeof chart->tables.bmp);
     for (int i = 0; i < BM_INDEX_MAX; i++) chart->tables.tempo[i] = -1;
@@ -299,6 +302,15 @@ int bm_load(struct bm_chart *chart, const char *_source)
                 checked_parse_int(chart->meta.gauge_total,
                     1, 999,
                     "Multiple TOTAL commands, overwritten");
+            } else if (strcmp(s, "STAGEFILE") == 0) {
+                checked_strdup(chart->meta.stage_file,
+                    "Multiple STAGEFILE commands, overwritten");
+            } else if (strcmp(s, "BANNER") == 0) {
+                checked_strdup(chart->meta.banner,
+                    "Multiple BANNER commands, overwritten");
+            } else if (strcmp(s, "BACKBMP") == 0) {
+                checked_strdup(chart->meta.back_bmp,
+                    "Multiple BACKBMP commands, overwritten");
             } else if (memcmp(s, "WAV", 3) == 0 && isbase36(s[3]) && isbase36(s[4])) {
                 int index = base36(s[3], s[4]);
                 checked_strdup(chart->tables.wav[index],
@@ -347,6 +359,9 @@ int bm_load(struct bm_chart *chart, const char *_source)
     check_default(chart->meta.play_level, "LEVEL", -1, 3);
     check_default(chart->meta.judge_rank, "RANK", -1, 3);
     check_default(chart->meta.gauge_total, "TOTAL", -1, 160);
+    check_default(chart->meta.stage_file, "STAGEFILE", NULL, "(none)");
+    check_default(chart->meta.banner, "BANNER", NULL, "(none)");
+    check_default(chart->meta.back_bmp, "BACKBMP", NULL, "(none)");
 
     free(source);
     return log_ptr;

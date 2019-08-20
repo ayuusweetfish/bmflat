@@ -2,6 +2,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -88,6 +89,31 @@ static inline void parse_track(int line, char *s, struct bm_track *track, short 
     }
 }
 
+static int note_time_compare(const void *_lhs, const void *_rhs)
+{
+    const struct bm_note *lhs = (const struct bm_note *)_lhs;
+    const struct bm_note *rhs = (const struct bm_note *)_rhs;
+    float diff = (lhs->bar - rhs->bar) + (lhs->beat - rhs->beat);
+    return (diff < -1e-6 ? -1 : (diff > +1e-6 ? +1 : 0));
+}
+
+static inline void sort_track(struct bm_track *track)
+{
+    // A stable sorting algorithm
+    mergesort(track->notes, track->note_count,
+        sizeof(struct bm_note), note_time_compare);
+    // Remove duplicates
+    int p, q;
+    float last_time = -1;
+    for (p = 0, q = -1; p < track->note_count; p++) {
+        float cur_time = track->notes[p].bar + track->notes[p].beat;
+        if (cur_time - last_time > 1e-6) q++;
+        if (p != q) track->notes[q] = track->notes[p];
+        last_time = cur_time;
+    }
+    track->note_count = q + 1;
+}
+
 int bm_load(struct bm_chart *chart, const char *_source)
 {
     char *source = strdup(_source);
@@ -140,8 +166,6 @@ int bm_load(struct bm_chart *chart, const char *_source)
             int bar = s[0] * 100 + s[1] * 10 + s[2] - '0' * 111;
             int track = s[3] * 10 + s[4] - '0' * 11;
 
-            // TODO: After sorting the later notes should overwrite
-            // previous ones at the same positions
             if (track >= 3 && track <= 59 && track != 5 && track_appeared[bar][track])
                 emit_log(line, "Track already defined previously, merging all notes");
             track_appeared[bar][track] = true;
@@ -298,6 +322,14 @@ int bm_load(struct bm_chart *chart, const char *_source)
             }
         }
     }
+
+    for (int i = 0; i < 50; i++) sort_track(&chart->tracks.fixed[i]);
+    sort_track(&chart->tracks.tempo);
+    sort_track(&chart->tracks.bga_base);
+    sort_track(&chart->tracks.bga_layer);
+    sort_track(&chart->tracks.bga_poor);
+    sort_track(&chart->tracks.ex_tempo);
+    sort_track(&chart->tracks.stop);
 
     #define check_default(_var, _name, _initial, _val) do { \
         if ((_var) == (_initial)) { \

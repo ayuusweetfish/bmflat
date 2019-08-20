@@ -1,6 +1,7 @@
 #include "bmflat.h"
 
 #include <ctype.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -33,16 +34,6 @@ static void ensure_log_cap()
 static inline int is_space_or_linebreak(char ch)
 {
     return ch == '\r' || ch == '\n' || ch == '\0';
-}
-
-static inline int parse_player_num(const char *s, int line)
-{
-    if (s[0] >= '1' && s[0] <= '3' && s[1] == '\0') {
-        return s[0] - '0';
-    } else {
-        emit_log(line, "Unrecognized player mode: %s; ignored", s);
-        return -1;
-    }
 }
 
 int bm_load(struct bm_chart *chart, const char *_source)
@@ -89,11 +80,15 @@ int bm_load(struct bm_chart *chart, const char *_source)
                 continue;
             }
 
-            #define checked_assign(_var, _func, _msg) do { \
-                int x = _func(s + arg, line); \
-                if (x != -1) { \
+            #define checked_parse_int(_var, _min, _max, _msg) do { \
+                errno = 0; \
+                long x = strtol(s + arg, NULL, 10); \
+                if (errno != EINVAL && x >= (_min) && x <= (_max)) { \
                     if ((_var) != -1) emit_log(line, _msg); \
                     (_var) = x; \
+                } else { \
+                    emit_log(line, "Invalid integral value, should be " \
+                        "between %d and %d (inclusive)", (_min) ,(_max)); \
                 } \
             } while (0)
 
@@ -107,12 +102,33 @@ int bm_load(struct bm_chart *chart, const char *_source)
             } while (0)
 
             if (strcmp(s, "PLAYER") == 0) {
-                checked_assign(chart->meta.player_num,
-                    parse_player_num,
+                checked_parse_int(chart->meta.player_num,
+                    1, 3,
                     "Multiple PLAYER commands, overwritten");
             } else if (strcmp(s, "GENRE") == 0) {
                 checked_strdup(chart->meta.genre,
                     "Multiple GENRE commands, overwritten");
+            } else if (strcmp(s, "TITLE") == 0) {
+                checked_strdup(chart->meta.title,
+                    "Multiple TITLE commands, overwritten");
+            } else if (strcmp(s, "ARTIST") == 0) {
+                checked_strdup(chart->meta.artist,
+                    "Multiple ARTIST commands, overwritten");
+            } else if (strcmp(s, "SUBARTIST") == 0) {
+                checked_strdup(chart->meta.subartist,
+                    "Multiple SUBARTIST commands, overwritten");
+            } else if (strcmp(s, "PLAYLEVEL") == 0) {
+                checked_parse_int(chart->meta.play_level,
+                    1, 999,
+                    "Multiple PLAYLEVEL commands, overwritten");
+            } else if (strcmp(s, "RANK") == 0) {
+                checked_parse_int(chart->meta.judge_rank,
+                    0, 3,
+                    "Multiple RANK commands, overwritten");
+            } else if (strcmp(s, "TOTAL") == 0) {
+                checked_parse_int(chart->meta.gauge_total,
+                    1, 999,
+                    "Multiple TOTAL commands, overwritten");
             } else {
                 emit_log(line, "Unrecognized command %s, ignoring", s);
             }

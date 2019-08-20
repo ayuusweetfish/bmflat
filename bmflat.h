@@ -22,9 +22,32 @@ struct bm_tables {
     char *bmp[BM_INDEX_MAX];
 };
 
+struct bm_note {
+    int time;   // In 192ths of a beat
+    short value;
+};
+
+struct bm_track {
+    int note_count;
+    struct bm_note *notes;
+};
+
+struct bm_tracks {
+#define BM_BGM_TRACKS   64
+    struct bm_track background[BM_BGM_TRACKS];
+    struct bm_track fixed[50];
+
+    struct bm_track bga_base;
+    struct bm_track bga_layer;
+    struct bm_track bga_poor;
+    struct bm_track tempo;
+    struct bm_track stop;
+};
+
 struct bm_chart {
     struct bm_metadata meta;
     struct bm_tables tables;
+    struct bm_tracks tracks;
 };
 
 #define BM_MSG_LEN  64

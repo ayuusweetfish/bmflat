@@ -53,12 +53,16 @@ int bm_load(struct bm_chart *chart, const char *_source)
 {
     char *source = strdup(_source);
 
-    memset(chart, -1, sizeof(struct bm_chart));
+    chart->meta.player_num = -1;
     chart->meta.genre = NULL;
     chart->meta.title = NULL;
     chart->meta.artist = NULL;
     chart->meta.subartist = NULL;
-    memset(&chart->tables, NULL, sizeof chart->tables);
+    chart->meta.play_level = -1;
+    chart->meta.judge_rank = -1;
+    chart->meta.gauge_total = -1;
+    memset(&chart->tables, 0, sizeof chart->tables);
+    memset(&chart->tracks, 0, sizeof chart->tracks);
 
     reset_logs();
     int len = strlen(source);
@@ -86,6 +90,27 @@ int bm_load(struct bm_chart *chart, const char *_source)
             isdigit(s[3]) && isdigit(s[4]) && s[5] == ':')
         {
             // Track data
+            int bar = s[0] * 100 + s[1] * 10 + s[2] - '0' * 111;
+            int track = s[3] * 10 + s[4] - '0' * 11;
+            if (track == 2) {
+                // Time signature
+            } else if (track == 3) {
+                // Tempo change
+            } else if (track == 4) {
+                // BGA
+            } else if (track == 6) {
+                // BGA poor
+            } else if (track == 7) {
+                // BGA layer
+            } else if (track == 8) {
+                // Extended tempo change
+            } else if (track == 9) {
+                // Stop
+            } else if (track >= 10 && track <= 59) {
+                // Fixed
+            } else {
+                emit_log(line, "Unknown track %c%c, ignoring", s[3], s[4]);
+            }
         } else {
             // Command
             int arg = 0;

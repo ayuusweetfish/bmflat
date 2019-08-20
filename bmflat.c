@@ -170,8 +170,12 @@ int bm_load(struct bm_chart *chart, const char *_source)
             int bar = s[0] * 100 + s[1] * 10 + s[2] - '0' * 111;
             int track = s[3] * 10 + s[4] - '0' * 11;
 
-            if (track >= 3 && track <= 59 && track != 5 && track_appeared[bar][track])
-                emit_log(line, "Track already defined previously, merging all notes");
+            if (track >= 3 && track <= 69 && track != 5 && track % 10 != 0 &&
+                track_appeared[bar][track])
+            {
+                emit_log(line, "Track %02d already defined previously, "
+                    "merging all notes", track);
+            }
             track_appeared[bar][track] = true;
 
             if (track == 2) {
@@ -212,7 +216,7 @@ int bm_load(struct bm_chart *chart, const char *_source)
             } else if (track == 9) {
                 // Stop
                 parse_track(line, s + 6, &chart->tracks.stop, bar);
-            } else if (track >= 10 && track <= 59) {
+            } else if (track >= 10 && track <= 69 && track % 10 != 0) {
                 // Fixed
                 parse_track(line, s + 6, &chart->tracks.fixed[track - 10], bar);
             } else if (track == 1) {

@@ -96,6 +96,7 @@ int bm_load(struct bm_chart *chart, const char *_source)
     chart->meta.title = NULL;
     chart->meta.artist = NULL;
     chart->meta.subartist = NULL;
+    chart->meta.init_tempo = -1;
     chart->meta.play_level = -1;
     chart->meta.judge_rank = -1;
     chart->meta.gauge_total = -1;
@@ -249,6 +250,10 @@ int bm_load(struct bm_chart *chart, const char *_source)
             } else if (strcmp(s, "SUBARTIST") == 0) {
                 checked_strdup(chart->meta.subartist,
                     "Multiple SUBARTIST commands, overwritten");
+            } else if (strcmp(s, "BPM") == 0) {
+                checked_parse_int(chart->meta.init_tempo,
+                    1, 999,
+                    "Multiple BPM commands, overwritten");
             } else if (strcmp(s, "PLAYLEVEL") == 0) {
                 checked_parse_int(chart->meta.play_level,
                     1, 999,
@@ -290,6 +295,7 @@ int bm_load(struct bm_chart *chart, const char *_source)
     if (chart->meta.title == NULL) chart->meta.title = "(unknown)";
     if (chart->meta.artist == NULL) chart->meta.artist = "(unknown)";
     if (chart->meta.subartist == NULL) chart->meta.subartist = "(unknown)";
+    if (chart->meta.init_tempo == -1) chart->meta.init_tempo = 130;
     if (chart->meta.play_level == -1) chart->meta.play_level = 3;
     if (chart->meta.judge_rank == -1) chart->meta.judge_rank = 3;
     if (chart->meta.gauge_total == -1) chart->meta.gauge_total = 160;

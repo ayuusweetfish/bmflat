@@ -135,6 +135,20 @@ int bm_load(struct bm_chart *chart, const char *_source)
             int track = s[3] * 10 + s[4] - '0' * 11;
             if (track == 2) {
                 // Time signature
+                errno = 0;
+                float x = strtof(s + 6, NULL);
+                if (errno != EINVAL && x >= 0.25 && x <= 63.75) {
+                    int y = (int)(x * 4 + 0.5);
+                    if (fabs(y - x * 4) >= 1e-3)
+                        emit_log(line, "Inaccurate time signature, treating as %d/4", y);
+                    if (chart->tracks.time_sig[bar] != 0)
+                        emit_log(line, "Time signature for bar %03d "
+                            "defined multiple times, overwriting", bar);
+                    chart->tracks.time_sig[bar] = y;
+                } else {
+                    emit_log(line, "Invalid time signature, should be a "
+                        "multiple of 0.25 between 0.25 and 63.75 (inclusive)");
+                }
             } else if (track == 3) {
                 // Tempo change
                 parse_track(line, s + 6, &chart->tracks.tempo, bar);
@@ -247,7 +261,7 @@ int bm_load(struct bm_chart *chart, const char *_source)
             } else if (memcmp(s, "BPM", 3) == 0 && isbase36(s[3]) && isbase36(s[4])) {
                 int index = base36(s[3], s[4]);
                 checked_parse_float(chart->tables.tempo[index],
-                    1, 999,
+                    1.0, 999.0,
                     "Tempo %c%c specified multiple times, overwritten", s[3], s[4]);
             } else if (memcmp(s, "STOP", 4) == 0 && isbase36(s[4]) && isbase36(s[5])) {
                 int index = base36(s[4], s[5]);

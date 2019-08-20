@@ -35,6 +35,8 @@ This means 4 objects at the left of 1 player side in 002 track. This object is a
 
 Please try the following patterns.
 
+#00202: 0.75
+#00202: 63.74
 #00211:0303030303
 #00212:0303000303
 #00213:010101

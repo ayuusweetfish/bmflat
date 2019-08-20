@@ -56,6 +56,11 @@ int main()
                 base36[i / 36], base36[i % 36], chart.tables.bmp[i]);
     putchar('\n');
 
+    printf("Time Signature\n");
+    for (int i = 0; i < BM_BARS_COUNT; i++)
+        if (chart.tracks.time_sig[i] != 0)
+            printf("Bar %03d: %d\n", i, (int)chart.tracks.time_sig[i]);
+
     printf("Tempo\n");
     for (int j = 0; j < chart.tracks.tempo.note_count; j++) {
         struct bm_note n = chart.tracks.tempo.notes[j];

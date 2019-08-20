@@ -45,11 +45,6 @@ static inline int parse_player_num(const char *s, int line)
     }
 }
 
-static inline char *parse_simple_copy(const char *s, int line)
-{
-    return strdup(s);
-}
-
 int bm_load(struct bm_chart *chart, const char *_source)
 {
     char *source = strdup(_source);
@@ -102,7 +97,7 @@ int bm_load(struct bm_chart *chart, const char *_source)
                 } \
             } while (0)
 
-            #define checked_strdup(_var, _func, _msg) do { \
+            #define checked_strdup(_var, _msg) do { \
                 char *x = strdup(s + arg); \
                 /* TODO: Handle cases of memory exhaustion? */ \
                 if (x != NULL) { \
@@ -112,12 +107,11 @@ int bm_load(struct bm_chart *chart, const char *_source)
             } while (0)
 
             if (strcmp(s, "PLAYER") == 0) {
-                checked_assign(
-                    chart->meta.player_num, parse_player_num,
+                checked_assign(chart->meta.player_num,
+                    parse_player_num,
                     "Multiple PLAYER commands, overwritten");
             } else if (strcmp(s, "GENRE") == 0) {
-                checked_strdup(
-                    chart->meta.genre, parse_simple_copy,
+                checked_strdup(chart->meta.genre,
                     "Multiple GENRE commands, overwritten");
             } else {
                 emit_log(line, "Unrecognized command %s, ignoring", s);

@@ -36,11 +36,29 @@ static inline int is_space_or_linebreak(char ch)
     return ch == '\r' || ch == '\n' || ch == '\0';
 }
 
+static inline int isbase36(char ch)
+{
+    return (ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'Z');
+}
+
+static inline int base36(char c1, char c2)
+{
+    // Assumes isbase36(c1) and isbase36(c2) are true
+    return
+        (c1 <= '9' ? c1 - '0' : c1 - 'A' + 10) * 36 +
+        (c2 <= '9' ? c2 - '0' : c2 - 'A' + 10);
+}
+
 int bm_load(struct bm_chart *chart, const char *_source)
 {
     char *source = strdup(_source);
 
     memset(chart, -1, sizeof(struct bm_chart));
+    chart->meta.genre = NULL;
+    chart->meta.title = NULL;
+    chart->meta.artist = NULL;
+    chart->meta.subartist = NULL;
+    memset(&chart->table, NULL, sizeof chart->table);
 
     reset_logs();
     int len = strlen(source);
@@ -80,11 +98,11 @@ int bm_load(struct bm_chart *chart, const char *_source)
                 continue;
             }
 
-            #define checked_parse_int(_var, _min, _max, _msg) do { \
+            #define checked_parse_int(_var, _min, _max, ...) do { \
                 errno = 0; \
                 long x = strtol(s + arg, NULL, 10); \
                 if (errno != EINVAL && x >= (_min) && x <= (_max)) { \
-                    if ((_var) != -1) emit_log(line, _msg); \
+                    if ((_var) != -1) emit_log(line, __VA_ARGS__); \
                     (_var) = x; \
                 } else { \
                     emit_log(line, "Invalid integral value, should be " \
@@ -92,11 +110,11 @@ int bm_load(struct bm_chart *chart, const char *_source)
                 } \
             } while (0)
 
-            #define checked_strdup(_var, _msg) do { \
+            #define checked_strdup(_var, ...) do { \
                 char *x = strdup(s + arg); \
                 /* TODO: Handle cases of memory exhaustion? */ \
                 if (x != NULL) { \
-                    if ((_var) != -1) { free(_var); emit_log(line, _msg); } \
+                    if ((_var) != NULL) { free(_var); emit_log(line, __VA_ARGS__); } \
                     (_var) = x; \
                 } \
             } while (0)
@@ -129,6 +147,14 @@ int bm_load(struct bm_chart *chart, const char *_source)
                 checked_parse_int(chart->meta.gauge_total,
                     1, 999,
                     "Multiple TOTAL commands, overwritten");
+            } else if (memcmp(s, "WAV", 3) == 0 && isbase36(s[3]) && isbase36(s[4])) {
+                int index = base36(s[3], s[4]);
+                checked_strdup(chart->table.wav[index],
+                    "Wave %c%c specified multiple times, overwritten", s[3], s[4]);
+            } else if (memcmp(s, "BMP", 3) == 0 && isbase36(s[3]) && isbase36(s[4])) {
+                int index = base36(s[3], s[4]);
+                checked_strdup(chart->table.bmp[index],
+                    "Bitmap %c%c specified multiple times, overwritten", s[3], s[4]);
             } else {
                 emit_log(line, "Unrecognized command %s, ignoring", s);
             }
@@ -136,10 +162,10 @@ int bm_load(struct bm_chart *chart, const char *_source)
     }
 
     if (chart->meta.player_num == -1) chart->meta.player_num = 1;
-    if (chart->meta.genre == -1) chart->meta.genre = "(unknown)";
-    if (chart->meta.title == -1) chart->meta.title = "(unknown)";
-    if (chart->meta.artist == -1) chart->meta.artist = "(unknown)";
-    if (chart->meta.subartist == -1) chart->meta.subartist = "(unknown)";
+    if (chart->meta.genre == NULL) chart->meta.genre = "(unknown)";
+    if (chart->meta.title == NULL) chart->meta.title = "(unknown)";
+    if (chart->meta.artist == NULL) chart->meta.artist = "(unknown)";
+    if (chart->meta.subartist == NULL) chart->meta.subartist = "(unknown)";
     if (chart->meta.play_level == -1) chart->meta.play_level = 3;
     if (chart->meta.judge_rank == -1) chart->meta.judge_rank = 3;
     if (chart->meta.gauge_total == -1) chart->meta.gauge_total = 160;

@@ -143,6 +143,7 @@ int bm_load(struct bm_chart *chart, const char *_source)
     // Temporary storage
     int bg_index[BM_BARS_COUNT] = { 0 };
     bool track_appeared[BM_BARS_COUNT][60] = { false };
+    int lnobj = -1;
 
     for (; ptr != len; ptr = ++next, line++) {
         // Advance to the next line break
@@ -329,13 +330,33 @@ int bm_load(struct bm_chart *chart, const char *_source)
                 checked_parse_int(chart->tables.stop[index],
                     0, 32767,
                     "Stop %c%c specified multiple times, overwritten", s[4], s[5]);
+            } else if (strcmp(s, "LNOBJ") == 0) {
+                if (isbase36(s[arg]) && isbase36(s[arg + 1])) {
+                    if (lnobj != -1)
+                        emit_log(line, "Multiple LNOBJ commands, overwritten");
+                    lnobj = base36(s[arg], s[arg + 1]);
+                } else {
+                    emit_log(line, "Invalid base-36 index %c%c, ignoring",
+                        s[arg], s[arg + 1]);
+                }
             } else {
                 emit_log(line, "Unrecognized command %s, ignoring", s);
             }
         }
     }
 
-    for (int i = 0; i < 50; i++) sort_track(&chart->tracks.fixed[i]);
+    for (int i = 0; i < 60; i++) sort_track(&chart->tracks.fixed[i]);
+    for (int i = 0; i < 20; i++)    // Indices 11-29
+        for (int j = 0; j < chart->tracks.fixed[i].note_count; j++) {
+            if (chart->tracks.fixed[i].notes[j].value == lnobj)
+                chart->tracks.fixed[i].notes[j].value = -1;
+        }
+    for (int i = 40; i < 60; i++)   // Indices 51-69
+        for (int j = 1; j < chart->tracks.fixed[i].note_count; j++) {
+            if (chart->tracks.fixed[i].notes[j].value ==
+                chart->tracks.fixed[i].notes[j - 1].value)
+                chart->tracks.fixed[i].notes[j].value = -1;
+        }
     sort_track(&chart->tracks.tempo);
     sort_track(&chart->tracks.bga_base);
     sort_track(&chart->tracks.bga_layer);

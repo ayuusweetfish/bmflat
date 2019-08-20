@@ -32,13 +32,12 @@ int main()
     }
 
     struct bm_chart chart;
-    int line = bm_load(&chart, src);
-    if (line != 0) {
-        printf("Line %d: %s\n", line, bm_errmsg);
-        return 2;
-    }
+    int msgs = bm_load(&chart, src);
 
-    puts("(^^)");
+    printf("%d warning%s\n", msgs, msgs == 1 ? "" : "s");
+    for (int i = 0; i < msgs; i++) {
+        printf("Line %d: %s\n", bm_logs[i].line, bm_logs[i].message);
+    }
 
     return 0;
 }

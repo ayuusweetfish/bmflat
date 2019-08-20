@@ -1,3 +1,11 @@
+rule('bms')
+    set_extensions('.bms', '.bme', '.bml')
+    on_build_file(function (target, source)
+        os.cp(source, path.join(target:targetdir(), source))
+    end)
+
 target('bmflat')
     set_kind('binary')
+    add_rules('bms')
     add_files('*.c')
+    add_files('sample.bms')

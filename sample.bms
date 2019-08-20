@@ -1,0 +1,24 @@
+#PLAYER 1
+#GENRE Genre
+#TITLE Example
+#ARTIST Artist
+#BPM 116
+#PLAYLEVEL 9
+#RANK 3
+#TOTAL 500
+
+#WAV01 1.wav
+#WAV02 2.wav
+#WAV03 3.wav
+
+<Example>
+
+#00111:03030303
+This means 4 objects at the left of 1 player side in 002 track. This object is assigned to wave No.03 which was defined by #WAV03 xxxx.wav. And this 4 objects are arranged evenly in this track.
+
+Please try the following patterns.
+
+#00211:0303030303
+#00212:0303000303
+#00213:010101
+#00214:0002020202

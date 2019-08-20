@@ -34,11 +34,15 @@ int bm_load(struct bm_chart *chart, const char *source)
     reset_logs();
 
     memset(chart, 0, sizeof(struct bm_chart));
+    int len = strlen(source);
 
-    const char *s = "lorem ipsum dolor sit amet";
-    emit_log(0, "heya");
-    emit_log(1, "%s %s %s %s", s, s, s, s);
-    emit_log(2, "%d + %d = %d", 222, 22, 222 + 22);
+    for (int ptr = 0, next = 0, line = 1; ptr != len; ptr = ++next, line++) {
+        while (source[next] != '\r' && source[next] != '\n' && source[next] != '\0') next++;
+        printf("Line %2d | ", line);
+        for (int i = ptr; i < next; i++) putchar(source[i]);
+        putchar('\n');
+        if (source[next] == '\r' && next + 1 < len && source[next + 1] == '\n') next++;
+    }
 
     return log_ptr;
 }

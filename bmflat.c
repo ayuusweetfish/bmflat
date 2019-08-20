@@ -1,5 +1,6 @@
 #include "bmflat.h"
 
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -29,20 +30,64 @@ static void ensure_log_cap()
     log_ptr++; \
 } while (0)
 
-int bm_load(struct bm_chart *chart, const char *source)
+static inline int is_space_or_linebreak(char ch)
 {
+    return ch == '\r' || ch == '\n' || ch == '\0';
+}
+
+static inline int parse_player_num(const char *s, int line)
+{
+    while (*s != '\0' && isspace(*s)) *s++;
+    if (s[0] >= '1' && s[0] <= '3' && s[1] == '\0') {
+        return s[0] - '0';
+    } else {
+        emit_log(line, "Unrecognized player mode: %s", s);
+        return -1;
+    }
+}
+
+int bm_load(struct bm_chart *chart, const char *_source)
+{
+    char *source = strdup(_source);
+
+    memset(chart, -1, sizeof(struct bm_chart));
+
     reset_logs();
-
-    memset(chart, 0, sizeof(struct bm_chart));
     int len = strlen(source);
+    int ptr = 0, next = 0, line = 1;
 
-    for (int ptr = 0, next = 0, line = 1; ptr != len; ptr = ++next, line++) {
-        while (source[next] != '\r' && source[next] != '\n' && source[next] != '\0') next++;
-        printf("Line %2d | ", line);
-        for (int i = ptr; i < next; i++) putchar(source[i]);
-        putchar('\n');
+    for (; ptr != len; ptr = ++next, line++) {
+        // Advance to the next line break
+        while (!is_space_or_linebreak(source[next])) next++;
         if (source[next] == '\r' && next + 1 < len && source[next + 1] == '\n') next++;
+
+        // Trim at both ends
+        while (ptr < next && isspace(source[ptr])) ptr++;
+        int end = next;
+        while (end >= ptr && isspace(source[end])) end--;
+        source[++end] = '\0';
+
+        // Comment
+        if (source[ptr] != '#') continue;
+
+        // Skip the # character
+        ptr++;
+
+        int args;
+        #define is_cmd(_cmd) \
+            ((memcmp(source + ptr, _cmd, strlen(_cmd)) == 0 && \
+            isspace(source[ptr + strlen(_cmd)])) ? \
+            ptr + strlen(_cmd) + 1 : -1)
+
+        if ((args = is_cmd("PLAYER")) >= 0)
+            chart->meta.player_num = parse_player_num(source + args, line);
     }
 
+    if (chart->meta.player_num == -1) chart->meta.player_num = 1;
+    if (chart->meta.play_level == -1) chart->meta.play_level = 3;
+    if (chart->meta.judge_rank == -1) chart->meta.judge_rank = 3;
+    if (chart->meta.gauge_total == -1) chart->meta.gauge_total = 160;
+
+    free(source);
     return log_ptr;
 }

@@ -63,6 +63,11 @@ static inline void add_note(struct bm_track *track, short bar, float beat, short
 
 static inline void parse_track(int line, char *s, struct bm_track *track, short bar)
 {
+    // TODO: After sorting the later notes should overwrite
+    // previous ones at the same positions
+    if (track->note_count > 0)
+        emit_log(line, "Track already defined previously, merging all notes");
+
     int count = 0;
     for (char *p = s; *p != '\0'; p++) count += (!isspace(*p));
     count /= 2;

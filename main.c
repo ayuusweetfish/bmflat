@@ -44,5 +44,15 @@ int main()
     printf("Artist: %s\n", chart.meta.artist);
     printf("Subartist: %s\n", chart.meta.subartist);
 
+    const char *base36 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    for (int i = 0; i < 1296; i++)
+        if (chart.table.wav[i] != NULL)
+            printf("Wave %c%c: %s\n",
+                base36[i / 36], base36[i % 36], chart.table.wav[i]);
+    for (int i = 0; i < 1296; i++)
+        if (chart.table.bmp[i] != NULL)
+            printf("Bitmap %c%C: %s\n",
+                base36[i / 36], base36[i % 36], chart.table.bmp[i]);
+
     return 0;
 }

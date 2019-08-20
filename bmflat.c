@@ -299,15 +299,22 @@ int bm_load(struct bm_chart *chart, const char *_source)
         }
     }
 
-    if (chart->meta.player_num == -1) chart->meta.player_num = 1;
-    if (chart->meta.genre == NULL) chart->meta.genre = "(unknown)";
-    if (chart->meta.title == NULL) chart->meta.title = "(unknown)";
-    if (chart->meta.artist == NULL) chart->meta.artist = "(unknown)";
-    if (chart->meta.subartist == NULL) chart->meta.subartist = "(unknown)";
-    if (chart->meta.init_tempo == -1) chart->meta.init_tempo = 130;
-    if (chart->meta.play_level == -1) chart->meta.play_level = 3;
-    if (chart->meta.judge_rank == -1) chart->meta.judge_rank = 3;
-    if (chart->meta.gauge_total == -1) chart->meta.gauge_total = 160;
+    #define check_default(_var, _name, _initial, _val) do { \
+        if ((_var) == (_initial)) { \
+            emit_log(-1, "Command " _name " did not appear, defaulting to " #_val); \
+            (_var) = (_val); \
+        } \
+    } while (0)
+
+    check_default(chart->meta.player_num, "PLAYER", -1, 1);
+    check_default(chart->meta.genre, "GENRE", NULL, "(unknown)");
+    check_default(chart->meta.title, "TITLE", NULL, "(unknown)");
+    check_default(chart->meta.artist, "ARTIST", NULL, "(unknown)");
+    check_default(chart->meta.subartist, "SUBARTIST", NULL, "(unknown)");
+    check_default(chart->meta.init_tempo, "BPM", -1, 130);
+    check_default(chart->meta.play_level, "LEVEL", -1, 3);
+    check_default(chart->meta.judge_rank, "RANK", -1, 3);
+    check_default(chart->meta.gauge_total, "TOTAL", -1, 160);
 
     free(source);
     return log_ptr;

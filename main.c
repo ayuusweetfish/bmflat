@@ -112,9 +112,10 @@ int main()
         printf("Track %d\n", i + 10);
         for (int j = 0; j < chart.tracks.fixed[i].note_count; j++) {
             struct bm_note n = chart.tracks.fixed[i].notes[j];
-            printf("%03d %03d %c%c\n",
+            printf("%03d %03d %c%c (%s)\n",
                 n.bar, (int)(n.beat * 1000 + 0.5f),
-                base36[n.value / 36], base36[n.value % 36]);
+                base36[n.value / 36], base36[n.value % 36],
+                chart.tables.wav[n.value]);
         }
     }
 

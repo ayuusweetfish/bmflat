@@ -37,7 +37,6 @@ static inline int is_space_or_linebreak(char ch)
 
 static inline int parse_player_num(const char *s, int line)
 {
-    while (*s != '\0' && isspace(*s)) *s++;
     if (s[0] >= '1' && s[0] <= '3' && s[1] == '\0') {
         return s[0] - '0';
     } else {
@@ -71,16 +70,22 @@ int bm_load(struct bm_chart *chart, const char *_source)
         if (source[ptr] != '#') continue;
 
         // Skip the # character
-        ptr++;
+        char *s = source + ptr + 1;
+        int line_len = end - ptr;
 
-        int args;
-        #define is_cmd(_cmd) \
-            ((memcmp(source + ptr, _cmd, strlen(_cmd)) == 0 && \
-            isspace(source[ptr + strlen(_cmd)])) ? \
-            ptr + strlen(_cmd) + 1 : -1)
-
-        if ((args = is_cmd("PLAYER")) >= 0)
-            chart->meta.player_num = parse_player_num(source + args, line);
+        if (line_len >= 6 && isdigit(s[0]) && isdigit(s[1]) && isdigit(s[2]) &&
+            isdigit(s[3]) && isdigit(s[4]) && s[5] == ':')
+        {
+            // Track data
+        } else {
+            // Command
+            int arg = 0;
+            while (arg < line_len && !isspace(s[arg])) arg++;
+            s[arg++] = '\0';
+            while (arg < line_len && isspace(s[arg])) arg++;
+            if (strcmp(s, "PLAYER") == 0)
+                chart->meta.player_num = parse_player_num(s + arg, line);
+        }
     }
 
     if (chart->meta.player_num == -1) chart->meta.player_num = 1;

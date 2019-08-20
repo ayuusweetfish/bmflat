@@ -15,12 +15,21 @@
 #BMPBM bm
 #BMPBM bms
 
+#BPM01 124.5
+#STOP01 32768
+#STOP01 32767
+#STOP01 32768
+#STOP01 32765
+
 <Example>
 
 #00111:03030303
 This means 4 objects at the left of 1 player side in 002 track. This object is assigned to wave No.03 which was defined by #WAV03 xxxx.wav. And this 4 objects are arranged evenly in this track.
 #00160:00
 #00159:AA0  A=v=
+#00108:00000001
+#00109:000101
+#00103:00FE
 
 Please try the following patterns.
 

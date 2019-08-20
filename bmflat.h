@@ -20,6 +20,8 @@ struct bm_tables {
 #define BM_INDEX_MAX    1296
     char *wav[BM_INDEX_MAX];
     char *bmp[BM_INDEX_MAX];
+    float tempo[BM_INDEX_MAX];
+    short stop[BM_INDEX_MAX];
 };
 
 struct bm_note {
@@ -38,10 +40,11 @@ struct bm_tracks {
     struct bm_track background[BM_BGM_TRACKS];
     struct bm_track fixed[50];
 
+    struct bm_track tempo;
     struct bm_track bga_base;
     struct bm_track bga_layer;
     struct bm_track bga_poor;
-    struct bm_track tempo;
+    struct bm_track ex_tempo;
     struct bm_track stop;
 };
 
@@ -51,7 +54,7 @@ struct bm_chart {
     struct bm_tracks tracks;
 };
 
-#define BM_MSG_LEN  64
+#define BM_MSG_LEN  128
 
 struct bm_log {
     int line;

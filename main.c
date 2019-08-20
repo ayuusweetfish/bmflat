@@ -43,6 +43,10 @@ int main()
     printf("Title: %s\n", chart.meta.title);
     printf("Artist: %s\n", chart.meta.artist);
     printf("Subartist: %s\n", chart.meta.subartist);
+    printf("Initial Tempo: %d\n", chart.meta.init_tempo);
+    printf("Play Level: %d\n", chart.meta.play_level);
+    printf("Judge Rank: %d\n", chart.meta.judge_rank);
+    printf("Gauge Total: %d\n", chart.meta.gauge_total);
     putchar('\n');
 
     const char *base36 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";

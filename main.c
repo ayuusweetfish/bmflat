@@ -47,6 +47,7 @@ int main()
     printf("Play Level: %d\n", chart.meta.play_level);
     printf("Judge Rank: %d\n", chart.meta.judge_rank);
     printf("Gauge Total: %d\n", chart.meta.gauge_total);
+    printf("Difficulty: %d\n", chart.meta.difficulty);
     printf("Loading Background: %s\n", chart.meta.stage_file);
     printf("Banner: %s\n", chart.meta.banner);
     printf("Play Background: %s\n", chart.meta.back_bmp);

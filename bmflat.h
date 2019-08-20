@@ -15,6 +15,7 @@ struct bm_metadata {
     int play_level;
     int judge_rank;
     int gauge_total;
+    int difficulty;
     char *stage_file;
     char *banner;
     char *back_bmp;

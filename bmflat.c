@@ -127,6 +127,7 @@ int bm_load(struct bm_chart *chart, const char *_source)
     chart->meta.play_level = -1;
     chart->meta.judge_rank = -1;
     chart->meta.gauge_total = -1;
+    chart->meta.difficulty = -1;    // Omissible
     chart->meta.stage_file = NULL;
     chart->meta.banner = NULL;
     chart->meta.back_bmp = NULL;
@@ -303,6 +304,10 @@ int bm_load(struct bm_chart *chart, const char *_source)
                 checked_parse_int(chart->meta.gauge_total,
                     1, 999,
                     "Multiple TOTAL commands, overwritten");
+            } else if (strcmp(s, "DIFFICULTY") == 0) {
+                checked_parse_int(chart->meta.difficulty,
+                    1, 5,
+                    "Multiple DIFFICULTY commands, overwritten");
             } else if (strcmp(s, "STAGEFILE") == 0) {
                 checked_strdup(chart->meta.stage_file,
                     "Multiple STAGEFILE commands, overwritten");

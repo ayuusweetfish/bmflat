@@ -215,7 +215,7 @@ int bm_load(struct bm_chart *chart, const char *_source)
                 parse_track(line, s + 6, &chart->tracks.stop, bar);
             } else if (track >= 10 && track <= 69 && track % 10 != 0) {
                 // Fixed
-                parse_track(line, s + 6, &chart->tracks.fixed[track - 10], bar);
+                parse_track(line, s + 6, &chart->tracks.object[track - 10], bar);
             } else if (track == 1) {
                 if (bg_index[bar] == BM_BGM_TRACKS) {
                     emit_log(line, "Too many background tracks (more than %d) "
@@ -359,7 +359,7 @@ int bm_load(struct bm_chart *chart, const char *_source)
     }
 
     // Sort notes and handle coincident overwrites
-    for (int i = 0; i < 60; i++) sort_track(&chart->tracks.fixed[i]);
+    for (int i = 0; i < 60; i++) sort_track(&chart->tracks.object[i]);
     sort_track(&chart->tracks.tempo);
     sort_track(&chart->tracks.bga_base);
     sort_track(&chart->tracks.bga_layer);
@@ -368,24 +368,24 @@ int bm_load(struct bm_chart *chart, const char *_source)
     sort_track(&chart->tracks.stop);
 
     // Handle long notes
-    // NOTE: #LNTYPE is not supported and is fixed to LNTYPE 1
+    // NOTE: #LNTYPE is not supported and is object to LNTYPE 1
     for (int i = 0; i < 20; i++)    // Indices 11-29
-        for (int j = 1; j < chart->tracks.fixed[i].note_count; j++) {
-            if (chart->tracks.fixed[i].notes[j].value == lnobj &&
-                chart->tracks.fixed[i].notes[j - 1].value != -1)
+        for (int j = 1; j < chart->tracks.object[i].note_count; j++) {
+            if (chart->tracks.object[i].notes[j].value == lnobj &&
+                chart->tracks.object[i].notes[j - 1].value != -1)
             {
-                chart->tracks.fixed[i].notes[j].value = -1;
-                chart->tracks.fixed[i].notes[j - 1].hold = true;
+                chart->tracks.object[i].notes[j].value = -1;
+                chart->tracks.object[i].notes[j - 1].hold = true;
                 j++;
             }
         }
     for (int i = 40; i < 60; i++)   // Indices 51-69
-        for (int j = 1; j < chart->tracks.fixed[i].note_count; j++) {
-            if (chart->tracks.fixed[i].notes[j].value ==
-                chart->tracks.fixed[i].notes[j - 1].value)
+        for (int j = 1; j < chart->tracks.object[i].note_count; j++) {
+            if (chart->tracks.object[i].notes[j].value ==
+                chart->tracks.object[i].notes[j - 1].value)
             {
-                chart->tracks.fixed[i].notes[j].value = -1;
-                chart->tracks.fixed[i].notes[j - 1].hold = true;
+                chart->tracks.object[i].notes[j].value = -1;
+                chart->tracks.object[i].notes[j - 1].hold = true;
                 j++;
             }
         }

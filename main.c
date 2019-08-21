@@ -132,10 +132,10 @@ int main()
         }
     }
 
-    for (int i = 0; i < 60; i++) if (chart.tracks.fixed[i].note_count > 0) {
+    for (int i = 0; i < 60; i++) if (chart.tracks.object[i].note_count > 0) {
         printf("Track %d\n", i + 10);
-        for (int j = 0; j < chart.tracks.fixed[i].note_count; j++) {
-            struct bm_note n = chart.tracks.fixed[i].notes[j];
+        for (int j = 0; j < chart.tracks.object[i].note_count; j++) {
+            struct bm_note n = chart.tracks.object[i].notes[j];
             printf("%03d %03d %c%c (%s%s)\n",
                 n.bar, (int)(n.beat * 1000 + 0.5f),
                 base36[n.value / 36], base36[n.value % 36],

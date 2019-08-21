@@ -66,12 +66,12 @@ struct bm_chart {
 enum bm_event_type {
     BM_BARLINE = 0,         // value = time signature
     BM_TEMPO_CHANGE,        // value_f = BPM
-    BM_NOTE_ON,             // value = index
-    BM_NOTE_LONG,           // value = index, value_a = duration
     BM_BGA_BASE_CHANGE,     // value = index
     BM_BGA_LAYER_CHANGE,    // value = index
     BM_BGA_POOR_CHANGE,     // value = index
     BM_STOP,                // value = duration
+    BM_NOTE_ON,             // value = index
+    BM_NOTE_LONG,           // value = index, value_a = duration
 };
 
 struct bm_event {

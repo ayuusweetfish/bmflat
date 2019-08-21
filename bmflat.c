@@ -444,13 +444,77 @@ void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
     memset(seq, 0, sizeof(struct bm_seq));
 
     int cap = 0;
+    int bar_start[BM_BARS_COUNT];
     struct bm_event event;
 
+    // Bar lines
     for (int i = 0, beats = 0; i < BM_BARS_COUNT; i++) {
+        bar_start[i] = beats;
         event.pos = beats * 48;
         event.type = BM_BARLINE;
+        event.track = 0;
+        event.value = chart->tracks.time_sig[i];
         beats += chart->tracks.time_sig[i];
         add_event(seq, &event, &cap);
         if (chart->tracks.time_sig[i] == 0) break;
+    }
+
+    struct bm_note *note;
+
+    #define track_each(_track) \
+        (int j = 0; j < (_track).note_count && (note = (_track).notes + j); j++)
+    #define pos(_note) (bar_start[(_note)->bar] + (int)((_note)->beat * 48))
+
+    // Tempo changes
+    // Track 03
+    for track_each(chart->tracks.tempo) {
+        event.pos = pos(note);
+        event.type = BM_TEMPO_CHANGE;
+        event.track = 3;
+        event.value_f = note->value;
+        add_event(seq, &event, &cap);
+    }
+    // Track 08
+    for track_each(chart->tracks.ex_tempo) {
+        event.pos = pos(note);
+        event.type = BM_TEMPO_CHANGE;
+        event.track = 8;
+        event.value_f = chart->tables.tempo[note->value];
+        add_event(seq, &event, &cap);
+    }
+
+    // BGA changes
+    // Track 04: base
+    for track_each(chart->tracks.bga_base) {
+        event.pos = pos(note);
+        event.type = BM_BGA_BASE_CHANGE;
+        event.track = 4;
+        event.value = note->value;
+        add_event(seq, &event, &cap);
+    }
+    // Track 07: layer
+    for track_each(chart->tracks.bga_layer) {
+        event.pos = pos(note);
+        event.type = BM_BGA_LAYER_CHANGE;
+        event.track = 7;
+        event.value = note->value;
+        add_event(seq, &event, &cap);
+    }
+    // Track 06: poor
+    for track_each(chart->tracks.bga_poor) {
+        event.pos = pos(note);
+        event.type = BM_BGA_POOR_CHANGE;
+        event.track = 6;
+        event.value = note->value;
+        add_event(seq, &event, &cap);
+    }
+
+    // Stops
+    for track_each(chart->tracks.stop) {
+        event.pos = pos(note);
+        event.type = BM_STOP;
+        event.track = 9;
+        event.value = chart->tables.stop[note->value];
+        add_event(seq, &event, &cap);
     }
 }

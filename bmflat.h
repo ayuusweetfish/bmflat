@@ -63,6 +63,35 @@ struct bm_chart {
     struct bm_tracks tracks;
 };
 
+enum bm_event_type {
+    BM_BARLINE = 0,         // value = time signature
+    BM_TEMPO_CHANGE,        // value_f = BPM
+    BM_NOTE_ON,             // value = index
+    BM_NOTE_LONG,           // value = index, value_a = duration
+    BM_BGA_BASE_CHANGE,     // value = index
+    BM_BGA_LAYER_CHANGE,    // value = index
+    BM_BGA_POOR_CHANGE,     // value = index
+    BM_STOP,                // value = duration
+};
+
+struct bm_event {
+    int pos;    // beat * 48 + fraction in 48ths of a beat (192ths of a whole note)
+    enum bm_event_type type:8;
+    char track; // non-positive for backgrounds; 11 - 59 for objects
+    union {
+        struct {
+            short value;
+            short value_a;
+        };
+        float value_f;
+    };
+};
+
+struct bm_seq {
+    int event_count;
+    struct bm_event *events;
+};
+
 #define BM_MSG_LEN  128
 
 struct bm_log {
@@ -73,6 +102,7 @@ struct bm_log {
 extern struct bm_log *bm_logs;
 
 int bm_load(struct bm_chart *chart, const char *source);
+void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq);
 
 #ifdef __cplusplus
 }

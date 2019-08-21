@@ -144,5 +144,22 @@ int main()
         }
     }
 
+    struct bm_seq seq;
+    bm_to_seq(&chart, &seq);
+
+    int bar = 0;
+
+    for (int i = 0; i < seq.event_count; i++) {
+        struct bm_event ev = seq.events[i];
+        printf("%6d.%02d: ", ev.pos / 48, ev.pos % 48);
+        switch (ev.type) {
+        case BM_BARLINE:
+            printf("------ #%03d %d/4\n", bar++, ev.value);
+            break;
+        default:
+            puts("> <");
+        }
+    }
+
     return 0;
 }

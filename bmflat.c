@@ -439,6 +439,11 @@ static inline void add_event(struct bm_seq *seq, struct bm_event *event, int *ca
     seq->events[seq->event_count++] = *event;
 }
 
+static inline int event_pos_compare(const void *lhs, const void *rhs)
+{
+    return ((struct bm_event *)lhs)->pos - ((struct bm_event *)rhs)->pos;
+}
+
 void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
 {
     memset(seq, 0, sizeof(struct bm_seq));
@@ -550,4 +555,8 @@ void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
                 }
             }
         }
+
+    // With a stable sorting algorithm only positions need to be compared
+    mergesort(seq->events, seq->event_count,
+        sizeof(struct bm_event), event_pos_compare);
 }

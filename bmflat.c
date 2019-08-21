@@ -97,7 +97,7 @@ static int note_time_compare(const void *_lhs, const void *_rhs)
     return (diff < -1e-6 ? -1 : (diff > +1e-6 ? +1 : 0));
 }
 
-static inline void sort_track(struct bm_track *track)
+static inline void sort_track(struct bm_track *track, int *max_bars)
 {
     // A stable sorting algorithm
     mergesort(track->notes, track->note_count,
@@ -112,6 +112,13 @@ static inline void sort_track(struct bm_track *track)
         last_time = cur_time;
     }
     track->note_count = q + 1;
+
+    // Update maximum bar number
+    if (track->note_count > 0 &&
+        *max_bars < track->notes[track->note_count - 1].bar)
+    {
+        *max_bars = track->notes[track->note_count - 1].bar;
+    }
 }
 
 int bm_load(struct bm_chart *chart, const char *_source)
@@ -359,13 +366,15 @@ int bm_load(struct bm_chart *chart, const char *_source)
     }
 
     // Sort notes and handle coincident overwrites
-    for (int i = 0; i < 60; i++) sort_track(&chart->tracks.object[i]);
-    sort_track(&chart->tracks.tempo);
-    sort_track(&chart->tracks.bga_base);
-    sort_track(&chart->tracks.bga_layer);
-    sort_track(&chart->tracks.bga_poor);
-    sort_track(&chart->tracks.ex_tempo);
-    sort_track(&chart->tracks.stop);
+    // Also keep track of the maximum bar number
+    int max_bars = 0;
+    for (int i = 0; i < 60; i++) sort_track(&chart->tracks.object[i], &max_bars);
+    sort_track(&chart->tracks.tempo, &max_bars);
+    sort_track(&chart->tracks.bga_base, &max_bars);
+    sort_track(&chart->tracks.bga_layer, &max_bars);
+    sort_track(&chart->tracks.bga_poor, &max_bars);
+    sort_track(&chart->tracks.ex_tempo, &max_bars);
+    sort_track(&chart->tracks.stop, &max_bars);
 
     // Handle long notes
     // NOTE: #LNTYPE is not supported and is object to LNTYPE 1
@@ -390,6 +399,11 @@ int bm_load(struct bm_chart *chart, const char *_source)
             }
         }
 
+    // Fill in missing time signatures
+    for (int i = 0; i < max_bars; i++)
+        if (chart->tracks.time_sig[i] == 0)
+            chart->tracks.time_sig[i] = 4;
+
     #define check_default(_var, _name, _initial, _val) do { \
         if ((_var) == (_initial)) { \
             emit_log(-1, "Command " _name " did not appear, defaulting to " #_val); \
@@ -412,4 +426,31 @@ int bm_load(struct bm_chart *chart, const char *_source)
 
     free(source);
     return log_ptr;
+}
+
+static inline void add_event(struct bm_seq *seq, struct bm_event *event, int *cap)
+{
+    // XXX: DRY?
+    if (*cap <= seq->event_count) {
+        *cap = (*cap == 0 ? 8 : (*cap << 1));
+        seq->events = (struct bm_event *)
+            realloc(seq->events, (*cap) * sizeof(struct bm_event));
+    }
+    seq->events[seq->event_count++] = *event;
+}
+
+void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
+{
+    memset(seq, 0, sizeof(struct bm_seq));
+
+    int cap = 0;
+    struct bm_event event;
+
+    for (int i = 0, beats = 0; i < BM_BARS_COUNT; i++) {
+        event.pos = beats * 48;
+        event.type = BM_BARLINE;
+        beats += chart->tracks.time_sig[i];
+        add_event(seq, &event, &cap);
+        if (chart->tracks.time_sig[i] == 0) break;
+    }
 }

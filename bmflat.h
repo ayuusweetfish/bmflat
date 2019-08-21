@@ -47,7 +47,7 @@ struct bm_tracks {
 
 #define BM_BGM_TRACKS   64
     struct bm_track background[BM_BGM_TRACKS];
-    struct bm_track fixed[60];
+    struct bm_track object[60];
 
     struct bm_track tempo;
     struct bm_track bga_base;

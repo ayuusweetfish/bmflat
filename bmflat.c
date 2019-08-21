@@ -468,7 +468,8 @@ void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
 
     #define track_each(_track) \
         (int j = 0; j < (_track).note_count && (note = (_track).notes + j); j++)
-    #define pos(_note) (bar_start[(_note)->bar] * 48 + (int)((_note)->beat * 48))
+    #define pos(_note) (bar_start[(_note)->bar] * 48 + \
+        (int)((_note)->beat * chart->tracks.time_sig[(_note)->bar] * 48))
 
     // Tempo changes
     // Track 03

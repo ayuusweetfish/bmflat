@@ -370,15 +370,24 @@ int bm_load(struct bm_chart *chart, const char *_source)
     // Handle long notes
     // NOTE: #LNTYPE is not supported and is fixed to LNTYPE 1
     for (int i = 0; i < 20; i++)    // Indices 11-29
-        for (int j = 0; j < chart->tracks.fixed[i].note_count; j++) {
-            if (chart->tracks.fixed[i].notes[j].value == lnobj)
+        for (int j = 1; j < chart->tracks.fixed[i].note_count; j++) {
+            if (chart->tracks.fixed[i].notes[j].value == lnobj &&
+                chart->tracks.fixed[i].notes[j - 1].value != -1)
+            {
                 chart->tracks.fixed[i].notes[j].value = -1;
+                chart->tracks.fixed[i].notes[j - 1].hold = true;
+                j++;
+            }
         }
     for (int i = 40; i < 60; i++)   // Indices 51-69
         for (int j = 1; j < chart->tracks.fixed[i].note_count; j++) {
             if (chart->tracks.fixed[i].notes[j].value ==
                 chart->tracks.fixed[i].notes[j - 1].value)
+            {
                 chart->tracks.fixed[i].notes[j].value = -1;
+                chart->tracks.fixed[i].notes[j - 1].hold = true;
+                j++;
+            }
         }
 
     #define check_default(_var, _name, _initial, _val) do { \

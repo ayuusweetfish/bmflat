@@ -31,7 +31,8 @@ struct bm_tables {
 
 struct bm_note {
     float beat; // In fractions of the bar
-    short bar;
+    short bar:15;
+    short hold:1;
     short value;
 };
 

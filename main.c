@@ -171,6 +171,14 @@ int main()
         case BM_STOP:
             printf("Stop %d\n", ev.value);
             break;
+        case BM_NOTE:
+            printf("Note on track %3d | %4d (%s)\n",
+                ev.track, ev.value, chart.tables.wav[ev.value]);
+            break;
+        case BM_NOTE_LONG:
+            printf("Long on track %3d | %4d (%s) -- duration %d\n",
+                ev.track, ev.value, chart.tables.wav[ev.value], ev.value_a);
+            break;
         default:
             puts("> <");
         }

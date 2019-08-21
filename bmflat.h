@@ -70,7 +70,7 @@ enum bm_event_type {
     BM_BGA_LAYER_CHANGE,    // value = index
     BM_BGA_POOR_CHANGE,     // value = index
     BM_STOP,                // value = duration
-    BM_NOTE_ON,             // value = index
+    BM_NOTE,                // value = index
     BM_NOTE_LONG,           // value = index, value_a = duration
 };
 

@@ -463,7 +463,7 @@ void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
 
     #define track_each(_track) \
         (int j = 0; j < (_track).note_count && (note = (_track).notes + j); j++)
-    #define pos(_note) (bar_start[(_note)->bar] + (int)((_note)->beat * 48))
+    #define pos(_note) (bar_start[(_note)->bar] * 48 + (int)((_note)->beat * 48))
 
     // Tempo changes
     // Track 03
@@ -517,4 +517,37 @@ void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
         event.value = chart->tables.stop[note->value];
         add_event(seq, &event, &cap);
     }
+
+    // Object tracks
+    // Backgrounds
+    for (int i = 0; i < BM_BGM_TRACKS; i++)
+        for track_each(chart->tracks.background[i]) {
+            // No long notes in background tracks
+            event.pos = pos(note);
+            event.type = BM_NOTE;
+            event.track = -i;
+            event.value = note->value;
+            add_event(seq, &event, &cap);
+        }
+
+    // Objects
+    for (int i = 0; i < 60; i++)
+        for track_each(chart->tracks.object[i]) {
+            if (note->value == -1) {
+                // Release of a long note
+                event.type = BM_NOTE_LONG;
+                event.value_a = pos(note) - event.pos;
+                add_event(seq, &event, &cap);
+            } else {
+                event.pos = pos(note);
+                event.track = i + 10;
+                if (event.track >= 50) event.track -= 40;
+                event.value = note->value;
+                if (!note->hold) {
+                    // Normal note
+                    event.type = BM_NOTE;
+                    add_event(seq, &event, &cap);
+                }
+            }
+        }
 }

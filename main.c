@@ -156,6 +156,21 @@ int main()
         case BM_BARLINE:
             printf("------ #%03d %d/4\n", bar++, ev.value);
             break;
+        case BM_TEMPO_CHANGE:
+            printf("BPM %.2f\n", ev.value_f);
+            break;
+        case BM_BGA_BASE_CHANGE:
+            printf("BGA %d (%s)\n", ev.value, chart.tables.bmp[ev.value]);
+            break;
+        case BM_BGA_LAYER_CHANGE:
+            printf("BGA Layer %d (%s)\n", ev.value, chart.tables.bmp[ev.value]);
+            break;
+        case BM_BGA_POOR_CHANGE:
+            printf("BGA Poor %d (%s)\n", ev.value, chart.tables.bmp[ev.value]);
+            break;
+        case BM_STOP:
+            printf("Stop %d\n", ev.value);
+            break;
         default:
             puts("> <");
         }

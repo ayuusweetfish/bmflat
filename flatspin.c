@@ -4,6 +4,7 @@
 #include "bmflat.h"
 
 #include <math.h>
+#include <stdbool.h>
 #include <stdio.h>
 
 #define GLSL(__source) "#version 150 core\n" #__source
@@ -17,9 +18,6 @@ static void flatspin_update();
 
 static const char *flatspin_bmspath;
 static const char *flatspin_basepath;
-
-static struct bm_chart chart;
-static struct bm_seq seq;
 
 static inline void add_vertex(float x, float y, float r, float g, float b)
 {
@@ -36,13 +34,16 @@ static inline void add_vertex(float x, float y, float r, float g, float b)
 
 static inline void add_rect(
     float x, float y, float w, float h,
-    float r, float g, float b)
+    float r, float g, float b, bool highlight)
 {
+    add_vertex(x, y + h, r, g, b);
     add_vertex(x, y, r, g, b);
     add_vertex(x + w, y, r, g, b);
-    add_vertex(x + w, y + h, r, g, b);
-    add_vertex(x, y, r, g, b);
-    add_vertex(x + w, y + h, r, g, b);
+    add_vertex(x + w, y, r, g, b);
+    add_vertex(x + w, y + h,
+        highlight ? (r * 0.7 + 0.3) : r,
+        highlight ? (g * 0.7 + 0.3) : g,
+        highlight ? (b * 0.7 + 0.3) : b);
     add_vertex(x, y + h, r, g, b);
 }
 
@@ -171,7 +172,7 @@ int main(int argc, char *argv[])
     // -- Event/render loop --
 
     while (!glfwWindowShouldClose(window)) {
-        glClearColor(0.15f, 0.1f, 0.3f, 1.0f);
+        glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         flatspin_update();
@@ -187,6 +188,8 @@ int main(int argc, char *argv[])
     glfwTerminate();
     return 0;
 }
+
+// -- Application logic --
 
 static char *read_file(const char *path)
 {
@@ -207,6 +210,14 @@ static char *read_file(const char *path)
     return buf;
 }
 
+static int msgs_count;
+static struct bm_chart chart;
+static struct bm_seq seq;
+
+#define SCRATCH_WIDTH   4
+#define KEY_WIDTH       3
+#define BGTRACK_WIDTH   2
+
 static int flatspin_init()
 {
     char *src = read_file(flatspin_bmspath);
@@ -215,11 +226,45 @@ static int flatspin_init()
         return 1;
     }
 
-    int msgs = bm_load(&chart, src);
+    msgs_count = bm_load(&chart, src);
     bm_to_seq(&chart, &seq);
+}
+
+static inline void draw_track(
+    float x, float w, float r, float g, float b)
+{
+    add_rect(x, -1, w, 2, r * 0.3, g * 0.3, b * 0.3, false);
+    for (int i = 0; i <= 10; i++)
+        add_rect(x, -0.7 + i * 0.1, w, i == 10 ? 0.4 : 0.03, r, g, b, true);
 }
 
 static void flatspin_update()
 {
     _vertices_count = 0;
+
+    float unit = 2.0f / (SCRATCH_WIDTH + KEY_WIDTH * 7 +
+        BGTRACK_WIDTH * chart.tracks.background_count);
+
+    draw_track(-1.0f, unit * SCRATCH_WIDTH, 1.0f, 0.4f, 0.3f);
+    for (int i = 0; i < 7; i++) {
+        draw_track(
+            -1.0f + unit * (SCRATCH_WIDTH + KEY_WIDTH * i),
+            unit * KEY_WIDTH,
+            i % 2 == 0 ? 1.0f : 0.5f,
+            i % 2 == 0 ? 1.0f : 0.5f,
+            i % 2 == 0 ? 1.0f : 1.0f
+        );
+    }
+    for (int i = 0; i < chart.tracks.background_count; i++) {
+        draw_track(
+            -1.0f + unit * (SCRATCH_WIDTH + KEY_WIDTH * 7 + BGTRACK_WIDTH * i),
+            unit * BGTRACK_WIDTH,
+            i % 2 == 0 ? 1.0f : 0.6f,
+            i % 2 == 0 ? 0.9f : 0.8f,
+            i % 2 == 0 ? 0.6f : 0.5f
+        );
+    }
+
+    for (int i = 0; i < seq.event_count; i++) {
+    }
 }

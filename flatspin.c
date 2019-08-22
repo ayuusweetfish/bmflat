@@ -218,6 +218,16 @@ static struct bm_seq seq;
 #define KEY_WIDTH       3
 #define BGTRACK_WIDTH   2
 
+#define HITLINE_POS     -0.2f
+
+static float unit;
+
+static float play_pos;
+static float scroll_speed;
+static float fwd_range;
+static float bwd_range;
+#define Y_POS(__pos)    (((__pos) - play_pos) * scroll_speed + HITLINE_POS)
+
 static int flatspin_init()
 {
     char *src = read_file(flatspin_bmspath);
@@ -228,43 +238,84 @@ static int flatspin_init()
 
     msgs_count = bm_load(&chart, src);
     bm_to_seq(&chart, &seq);
+
+    unit = 2.0f / (SCRATCH_WIDTH + KEY_WIDTH * 7 +
+        BGTRACK_WIDTH * chart.tracks.background_count);
+
+    play_pos = 142 * 48;
+    scroll_speed = 0.2f / 48;   // Screen Y units per 1/48 beat
+    fwd_range = (1 - HITLINE_POS) / scroll_speed;
+    bwd_range = (HITLINE_POS + 1) / scroll_speed;
 }
 
-static inline void draw_track(
-    float x, float w, float r, float g, float b)
+static inline void track_attr(
+    int id, float *x, float *w, float *r, float *g, float *b)
 {
+    if (id == 16) {
+        *x = -1.0f;
+        *w = unit * SCRATCH_WIDTH;
+        *r = 1.0f;
+        *g = 0.4f;
+        *b = 0.3f;
+    } else if (id >= 11 && id <= 19 && id != 17) {
+        int i = (id < 17 ? id - 11 : id - 13);
+        *x = -1.0f + unit * (SCRATCH_WIDTH + KEY_WIDTH * i);
+        *w = unit * KEY_WIDTH;
+        *r = i % 2 == 0 ? 1.0f : 0.5f;
+        *g = i % 2 == 0 ? 1.0f : 0.5f;
+        *b = i % 2 == 0 ? 1.0f : 1.0f;
+    } else if (id <= 0) {
+        int i = -id;
+        *x = -1.0f + unit * (SCRATCH_WIDTH + KEY_WIDTH * 7 + BGTRACK_WIDTH * i);
+        *w = unit * BGTRACK_WIDTH;
+        *r = i % 2 == 0 ? 1.0f : 0.6f;
+        *g = i % 2 == 0 ? 0.9f : 0.8f;
+        *b = i % 2 == 0 ? 0.6f : 0.5f;
+    }
+}
+
+static inline void draw_track_background(int id)
+{
+    float x, w, r, g, b;
+    track_attr(id, &x, &w, &r, &g, &b);
     add_rect(x, -1, w, 2, r * 0.3, g * 0.3, b * 0.3, false);
-    for (int i = 0; i <= 10; i++)
-        add_rect(x, -0.7 + i * 0.1, w, i == 10 ? 0.4 : 0.03, r, g, b, true);
 }
 
 static void flatspin_update()
 {
     _vertices_count = 0;
 
-    float unit = 2.0f / (SCRATCH_WIDTH + KEY_WIDTH * 7 +
-        BGTRACK_WIDTH * chart.tracks.background_count);
+    for (int i = 11; i <= 19; i++)
+        if (i != 17) draw_track_background(i);
+    for (int i = 0; i < chart.tracks.background_count; i++)
+        draw_track_background(-i);
 
-    draw_track(-1.0f, unit * SCRATCH_WIDTH, 1.0f, 0.4f, 0.3f);
-    for (int i = 0; i < 7; i++) {
-        draw_track(
-            -1.0f + unit * (SCRATCH_WIDTH + KEY_WIDTH * i),
-            unit * KEY_WIDTH,
-            i % 2 == 0 ? 1.0f : 0.5f,
-            i % 2 == 0 ? 1.0f : 0.5f,
-            i % 2 == 0 ? 1.0f : 1.0f
-        );
-    }
-    for (int i = 0; i < chart.tracks.background_count; i++) {
-        draw_track(
-            -1.0f + unit * (SCRATCH_WIDTH + KEY_WIDTH * 7 + BGTRACK_WIDTH * i),
-            unit * BGTRACK_WIDTH,
-            i % 2 == 0 ? 1.0f : 0.6f,
-            i % 2 == 0 ? 0.9f : 0.8f,
-            i % 2 == 0 ? 0.6f : 0.5f
-        );
+    int start = 0;
+    // TODO: Use binary search
+    while (start < seq.event_count && seq.events[start].pos <= play_pos - bwd_range) start++;
+
+    for (int i = start; i < seq.event_count && seq.events[i].pos <= play_pos + fwd_range; i++) {
+        if (seq.events[i].type == BM_BARLINE) {
+            add_rect(-1, Y_POS(seq.events[i].pos), 2, 0.01, 0.3, 0.3, 0.3, false);
+            // TODO: Add bar number
+        }
     }
 
-    for (int i = 0; i < seq.event_count; i++) {
+    for (int i = start; i < seq.event_count && seq.events[i].pos <= play_pos + fwd_range; i++) {
+        struct bm_event ev = seq.events[i];
+        float x, w, r, g, b;
+        switch (ev.type) {
+        case BM_NOTE:
+        case BM_NOTE_LONG:
+            track_attr(ev.track, &x, &w, &r, &g, &b);
+            add_rect(x, Y_POS(ev.pos), w,
+                ev.type == BM_NOTE ? 0.02f :
+                    0.02f + ev.value_a * scroll_speed,
+                r, g, b, true);
+            break;
+        default: break;
+        }
     }
+
+    add_rect(-1, HITLINE_POS, 2, 0.01, 1.0, 0.7, 0.4, false);
 }

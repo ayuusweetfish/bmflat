@@ -3,6 +3,11 @@
 
 #include "bmflat.h"
 
+#define DR_WAV_IMPLEMENTATION
+#include "miniaudio/extras/dr_wav.h"
+#define MINIAUDIO_IMPLEMENTATION
+#include "miniaudio/miniaudio.h"
+
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -17,8 +22,8 @@ static int _vertices_count;
 static int flatspin_init();
 static void flatspin_update(float dt);
 
-static const char *flatspin_bmspath;
-static const char *flatspin_basepath;
+static char *flatspin_bmspath;
+static char *flatspin_basepath;
 
 static inline void add_vertex(float x, float y, float r, float g, float b)
 {
@@ -88,8 +93,9 @@ int main(int argc, char *argv[])
     if (p == -1) {
         flatspin_basepath = "./";
     } else {
-        flatspin_basepath = (char *)malloc(p + 1);
+        flatspin_basepath = (char *)malloc(p + 2);
         memcpy(flatspin_basepath, flatspin_bmspath, p + 1);
+        flatspin_basepath[p + 1] = '\0';
     }
     fprintf(stderr, "^ ^  Asset search path: %s\n", flatspin_basepath);
 
@@ -221,6 +227,9 @@ static int msgs_count;
 static struct bm_chart chart;
 static struct bm_seq seq;
 
+static float *pcm[BM_INDEX_MAX] = { NULL };
+static ma_uint64 pcm_len[BM_INDEX_MAX] = { 0 };
+
 #define SCRATCH_WIDTH   4
 #define KEY_WIDTH       3
 #define BGTRACK_WIDTH   2
@@ -265,6 +274,8 @@ static inline void delta_ss_submit(float delta, float time)
     delta_ss_time = time;
 }
 
+static const char *base36 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
 static int flatspin_init()
 {
     char *src = read_file(flatspin_bmspath);
@@ -285,6 +296,29 @@ static int flatspin_init()
     bwd_range = (HITLINE_POS + 1) / scroll_speed;
 
     delta_ss_rate = delta_ss_time = 0;
+
+    // Load PCM data
+    ma_decoder_config config = ma_decoder_config_init(ma_format_f32, 2, 44100);
+    char s[1024] = { 0 };
+    strcpy(s, flatspin_basepath);
+    int len = strlen(flatspin_basepath);
+    for (int i = 0; i < BM_INDEX_MAX; i++) if (chart.tables.wav[i] != NULL) {
+        strncpy(s + len, chart.tables.wav[i], sizeof(s) - len - 1);
+        float *ptr;
+        ma_uint64 len;
+        ma_result result = ma_decode_file(s, &config, &len, (void **)&ptr);
+        if (result != MA_SUCCESS) {
+            printf("> <  Cannot load wave #%c%c %s (error code %d)\n",
+                base36[i / 36], base36[i % 36], s, result);
+        } else {
+            pcm_len[i] = len;
+            printf("= =  Loaded wave #%c%c %s; length %.3f seconds\n",
+                base36[i / 36], base36[i % 36],
+                chart.tables.wav[i], (double)pcm_len[i] / 44100);
+        }
+    }
+
+    return 0;
 }
 
 static inline void track_attr(

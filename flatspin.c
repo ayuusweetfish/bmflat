@@ -357,7 +357,7 @@ static void flatspin_update(float dt)
 
     int start = 0;
     // TODO: Use binary search
-    while (start < seq.event_count && seq.events[start].pos <= play_pos - bwd_range) start++;
+    while (start < seq.event_count && seq.events[start].pos < play_pos - bwd_range) start++;
 
     for (int i = start; i < seq.event_count && seq.events[i].pos <= play_pos + fwd_range; i++) {
         if (seq.events[i].type == BM_BARLINE) {
@@ -378,6 +378,14 @@ static void flatspin_update(float dt)
                     0.02f + ev.value_a * scroll_speed,
                 r, g, b, true);
             break;
+        case BM_NOTE_OFF:
+            if (ev.pos - ev.value_a < play_pos - bwd_range) {
+                track_attr(ev.track, &x, &w, &r, &g, &b);
+                add_rect(x, Y_POS(ev.pos - ev.value_a), w,
+                    ev.type == BM_NOTE ? 0.02f :
+                        0.02f + ev.value_a * scroll_speed,
+                    r, g, b, true);
+            }
         default: break;
         }
     }

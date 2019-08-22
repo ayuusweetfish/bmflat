@@ -180,6 +180,8 @@ int main()
             printf("Long on track %3d | %4d (%s) -- duration %d\n",
                 ev.track, ev.value, chart.tables.wav[ev.value], ev.value_a);
             break;
+        case BM_NOTE_OFF:
+            break;
         default:
             puts("> <");
         }

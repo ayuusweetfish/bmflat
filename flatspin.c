@@ -80,6 +80,7 @@ static GLFWwindow *window;
 
 static void audio_data_callback(
     ma_device *device, float *output, const float *input, ma_uint32 nframes);
+static ma_device audio_device;
 
 int main(int argc, char *argv[])
 {
@@ -113,9 +114,8 @@ int main(int argc, char *argv[])
     dev_config.sampleRate = 44100;
     dev_config.dataCallback = (ma_device_callback_proc)audio_data_callback;
 
-    ma_device device;
-    if (ma_device_init(NULL, &dev_config, &device) != MA_SUCCESS ||
-        ma_device_start(&device) != MA_SUCCESS)
+    if (ma_device_init(NULL, &dev_config, &audio_device) != MA_SUCCESS ||
+        ma_device_start(&audio_device) != MA_SUCCESS)
     {
         fprintf(stderr, "> <  Cannot start audio playback");
         return 3;
@@ -281,6 +281,8 @@ static float delta_ss_time;
 static void audio_data_callback(
     ma_device *device, float *output, const float *input, ma_uint32 nframes)
 {
+    ma_mutex_lock(&device->lock);
+
     ma_zero_pcm_frames(output, nframes, ma_format_f32, 2);
     for (int i = 0; i < TOTAL_TRACKS; i++) {
         int wave = track_wave[i];
@@ -294,6 +296,8 @@ static void audio_data_callback(
             track_wave_pos[i] += j;
         }
     }
+
+    ma_mutex_unlock(&device->lock);
 
     (void)input;    // Unused
 }
@@ -474,6 +478,11 @@ static void flatspin_update(float dt)
             if (ev.type == BM_TEMPO_CHANGE) current_bpm = ev.value_f;
         }
         event_ptr = i;
+    } else if (!playing) {
+        // Stop all sounds
+        ma_mutex_lock(&audio_device.lock);
+        for (int i = 0; i < TOTAL_TRACKS; i++) track_wave[i] = -1;
+        ma_mutex_unlock(&audio_device.lock);
     }
 
     memcpy(keys_prev, keys, sizeof keys);
@@ -484,6 +493,8 @@ static void flatspin_update(float dt)
 
     if (playing) {
         play_pos += dt * current_bpm * (48.0f / 60.0f);
+
+        ma_mutex_lock(&audio_device.lock);
 
         while (event_ptr < seq.event_count && seq.events[event_ptr].pos <= play_pos) {
             struct bm_event ev = seq.events[event_ptr];
@@ -496,13 +507,16 @@ static void flatspin_update(float dt)
                 track_wave[track_index(ev.track)] = ev.value;
                 track_wave_pos[track_index(ev.track)] = 0;
                 break;
-            case BM_NOTE_OFF:
-                track_wave[track_index(ev.track)] = -1;
-                break;
+            // Not really
+            //case BM_NOTE_OFF:
+            //    track_wave[track_index(ev.track)] = -1;
+            //    break;
             default: break;
             }
             event_ptr++;
         }
+
+        ma_mutex_unlock(&audio_device.lock);
     }
 
     // -- Drawing --

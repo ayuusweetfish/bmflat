@@ -1,4 +1,5 @@
 add_requires('glfw3', {optional = true})
+add_requires('glew', {optional = true})
 
 rule('bms')
     set_extensions('.bms', '.bme', '.bml')
@@ -17,6 +18,7 @@ target('bmflat')
 target('bmflatspin')
     set_kind('binary')
     add_packages('glfw3')
+    add_packages('glew')
     if is_plat('macosx') then
         add_frameworks('OpenGL')
     elseif is_plat('linux') then

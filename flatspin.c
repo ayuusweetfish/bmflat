@@ -78,6 +78,9 @@ static inline GLuint load_shader(GLenum type, const char *source)
 
 static GLFWwindow *window; 
 
+static void audio_data_callback(
+    ma_device *device, float *output, const float *input, ma_uint32 nframes);
+
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
@@ -101,6 +104,22 @@ int main(int argc, char *argv[])
 
     int result = flatspin_init();
     if (result != 0) return result;
+
+    // Initialize miniaudio
+    ma_device_config dev_config =
+        ma_device_config_init(ma_device_type_playback);
+    dev_config.playback.format = ma_format_f32;
+    dev_config.playback.channels = 2;
+    dev_config.sampleRate = 44100;
+    dev_config.dataCallback = (ma_device_callback_proc)audio_data_callback;
+
+    ma_device device;
+    if (ma_device_init(NULL, &dev_config, &device) != MA_SUCCESS ||
+        ma_device_start(&device) != MA_SUCCESS)
+    {
+        fprintf(stderr, "> <  Cannot start audio playback");
+        return 3;
+    }
 
     // -- Initialization --
 
@@ -230,6 +249,10 @@ static struct bm_seq seq;
 static float *pcm[BM_INDEX_MAX] = { NULL };
 static ma_uint64 pcm_len[BM_INDEX_MAX] = { 0 };
 
+#define TOTAL_TRACKS    (60 + BM_BGM_TRACKS)
+static int track_wave[TOTAL_TRACKS];
+static ma_uint64 track_wave_pos[TOTAL_TRACKS];
+
 #define SCRATCH_WIDTH   4
 #define KEY_WIDTH       3
 #define BGTRACK_WIDTH   2
@@ -254,6 +277,26 @@ static float delta_ss_time;
 #define SS_MAX  (1.0f / 48)
 #define SS_DELTA    (0.05f / 48)
 #define SS_INITIAL  (0.4f / 48)
+
+static void audio_data_callback(
+    ma_device *device, float *output, const float *input, ma_uint32 nframes)
+{
+    ma_zero_pcm_frames(output, nframes, ma_format_f32, 2);
+    for (int i = 0; i < TOTAL_TRACKS; i++) {
+        int wave = track_wave[i];
+        if (wave != -1) {
+            int start = track_wave_pos[i];
+            int j;
+            for (j = 0; j < nframes && start + j < pcm_len[wave]; j++) {
+                output[j * 2] += pcm[wave][(start + j) * 2];
+                output[j * 2 + 1] += pcm[wave][(start + j) * 2 + 1];
+            }
+            track_wave_pos[i] += j;
+        }
+    }
+
+    (void)input;    // Unused
+}
 
 static inline void delta_ss_step(float dt)
 {
@@ -298,7 +341,7 @@ static int flatspin_init()
     delta_ss_rate = delta_ss_time = 0;
 
     // Load PCM data
-    ma_decoder_config config = ma_decoder_config_init(ma_format_f32, 2, 44100);
+    ma_decoder_config dec_config = ma_decoder_config_init(ma_format_f32, 2, 44100);
     char s[1024] = { 0 };
     strcpy(s, flatspin_basepath);
     int len = strlen(flatspin_basepath);
@@ -306,17 +349,24 @@ static int flatspin_init()
         strncpy(s + len, chart.tables.wav[i], sizeof(s) - len - 1);
         float *ptr;
         ma_uint64 len;
-        ma_result result = ma_decode_file(s, &config, &len, (void **)&ptr);
+        ma_result result = ma_decode_file(s, &dec_config, &len, (void **)&ptr);
         if (result != MA_SUCCESS) {
-            printf("> <  Cannot load wave #%c%c %s (error code %d)\n",
+            fprintf(stderr, "> <  Cannot load wave #%c%c %s (error code %d)\n",
                 base36[i / 36], base36[i % 36], s, result);
         } else {
             pcm_len[i] = len;
-            printf("= =  Loaded wave #%c%c %s; length %.3f seconds\n",
+            pcm[i] = ptr;
+            fprintf(stderr, "= =  Loaded wave #%c%c %s; length %.3f seconds\n",
                 base36[i / 36], base36[i % 36],
                 chart.tables.wav[i], (double)pcm_len[i] / 44100);
         }
     }
+
+    for (int i = 0; i < TOTAL_TRACKS; i++) {
+        track_wave[i] = -1;
+        track_wave_pos[i] = 0;
+    }
+    track_wave[0] = 1;
 
     return 0;
 }

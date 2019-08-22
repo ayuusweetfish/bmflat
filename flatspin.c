@@ -243,7 +243,7 @@ static float delta_ss_time;
 #define SS_MIN  (0.1f / 48)
 #define SS_MAX  (1.0f / 48)
 #define SS_DELTA    (0.05f / 48)
-#define SS_INITIAL  (0.2f / 48)
+#define SS_INITIAL  (0.4f / 48)
 
 static inline void delta_ss_step(float dt)
 {
@@ -343,12 +343,15 @@ static void flatspin_update(float dt)
         delta_ss_submit(+SS_DELTA, 0.1);
     }
 
+    int mul =
+        (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ||
+         glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS) ? 4 : 1;
     if (keys[0] == GLFW_PRESS && keys[1] == GLFW_RELEASE) {
         // Up: play pos+
-        play_pos += dt * 384 / (scroll_speed / SS_INITIAL);
+        play_pos += dt * 288 / (scroll_speed / SS_INITIAL) * mul;
     } else if (keys[1] == GLFW_PRESS && keys[0] == GLFW_RELEASE) {
         // Down: play pos-
-        play_pos -= dt * 384 / (scroll_speed / SS_INITIAL);
+        play_pos -= dt * 288 / (scroll_speed / SS_INITIAL) * mul;
     }
 
     if (keys[4] == GLFW_PRESS && keys_prev[4] == GLFW_RELEASE) {

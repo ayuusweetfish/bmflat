@@ -237,6 +237,10 @@ static float bwd_range;
 
 static float delta_ss_rate; // For easing of scroll speed changes
 static float delta_ss_time;
+#define SS_MIN  (0.1f / 48)
+#define SS_MAX  (1.0f / 48)
+#define SS_DELTA    (0.05f / 48)
+#define SS_INITIAL  (0.2f / 48)
 
 static inline void delta_ss_step(float dt)
 {
@@ -244,8 +248,8 @@ static inline void delta_ss_step(float dt)
     if (dt > delta_ss_time) dt = delta_ss_time;
     scroll_speed += delta_ss_rate * dt;
     delta_ss_time -= dt;
-    if (scroll_speed < 0.1f / 48) scroll_speed = 0.1f / 48;
-    if (scroll_speed > 1.0f / 48) scroll_speed = 1.0f / 48;
+    if (scroll_speed < SS_MIN) scroll_speed = SS_MIN;
+    if (scroll_speed > SS_MAX) scroll_speed = SS_MAX;
     fwd_range = (1 - HITLINE_POS) / scroll_speed;
     bwd_range = (HITLINE_POS + 1) / scroll_speed;
 }
@@ -272,7 +276,7 @@ static int flatspin_init()
         BGTRACK_WIDTH * chart.tracks.background_count);
 
     play_pos = 142 * 48;
-    scroll_speed = 0.2f / 48;   // Screen Y units per 1/48 beat
+    scroll_speed = SS_INITIAL;  // Screen Y units per 1/48 beat
     fwd_range = (1 - HITLINE_POS) / scroll_speed;
     bwd_range = (HITLINE_POS + 1) / scroll_speed;
 
@@ -327,15 +331,15 @@ static void flatspin_update(float dt)
     };
 
     if (keys[2] == GLFW_PRESS && keys_prev[2] == GLFW_RELEASE) {
-        delta_ss_submit(-0.05f / 48, 0.1);
+        delta_ss_submit(-SS_DELTA, 0.1);
     } else if (keys[3] == GLFW_PRESS && keys_prev[3] == GLFW_RELEASE) {
-        delta_ss_submit(+0.05f / 48, 0.1);
+        delta_ss_submit(+SS_DELTA, 0.1);
     }
 
     if (keys[0] == GLFW_PRESS && keys[1] == GLFW_RELEASE) {
-        play_pos += dt * 384 / (scroll_speed / (0.2f / 48));
+        play_pos += dt * 384 / (scroll_speed / SS_INITIAL);
     } else if (keys[1] == GLFW_PRESS && keys[0] == GLFW_RELEASE) {
-        play_pos -= dt * 384 / (scroll_speed / (0.2f / 48));
+        play_pos -= dt * 384 / (scroll_speed / SS_INITIAL);
     }
 
     memcpy(keys_prev, keys, sizeof keys);

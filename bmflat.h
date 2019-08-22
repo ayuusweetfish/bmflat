@@ -46,6 +46,7 @@ struct bm_tracks {
     unsigned char time_sig[BM_BARS_COUNT];
 
 #define BM_BGM_TRACKS   64
+    int background_count;
     struct bm_track background[BM_BGM_TRACKS];
     struct bm_track object[60];
 

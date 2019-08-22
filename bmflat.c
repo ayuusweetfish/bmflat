@@ -230,6 +230,8 @@ int bm_load(struct bm_chart *chart, const char *_source)
                 } else {
                     parse_track(line, s + 6, &chart->tracks.background[bg_index[bar]], bar);
                     bg_index[bar]++;
+                    if (chart->tracks.background_count < bg_index[bar])
+                        chart->tracks.background_count = bg_index[bar];
                 }
             } else {
                 emit_log(line, "Unknown track %c%c, ignoring", s[3], s[4]);
@@ -526,7 +528,7 @@ void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
 
     // Object tracks
     // Backgrounds
-    for (int i = 0; i < BM_BGM_TRACKS; i++)
+    for (int i = 0; i < chart->tracks.background_count; i++)
         for track_each(chart->tracks.background[i]) {
             // No long notes in background tracks
             event.pos = pos(note);

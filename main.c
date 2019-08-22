@@ -121,16 +121,17 @@ int main()
             chart.tables.bmp[n.value]);
     }
 
-    for (int i = 0; i < BM_BGM_TRACKS; i++) if (chart.tracks.background[i].note_count > 0) {
-        printf("Background Track %d\n", i);
-        for (int j = 0; j < chart.tracks.background[i].note_count; j++) {
-            struct bm_note n = chart.tracks.background[i].notes[j];
-            printf("%03d %03d %c%c (%s)\n",
-                n.bar, (int)(n.beat * 1000 + 0.5f),
-                base36[n.value / 36], base36[n.value % 36],
-                chart.tables.wav[n.value]);
+    for (int i = 0; i < chart.tracks.background_count; i++)
+        if (chart.tracks.background[i].note_count > 0) {
+            printf("Background Track %d\n", i);
+            for (int j = 0; j < chart.tracks.background[i].note_count; j++) {
+                struct bm_note n = chart.tracks.background[i].notes[j];
+                printf("%03d %03d %c%c (%s)\n",
+                    n.bar, (int)(n.beat * 1000 + 0.5f),
+                    base36[n.value / 36], base36[n.value % 36],
+                    chart.tables.wav[n.value]);
+            }
         }
-    }
 
     for (int i = 0; i < 60; i++) if (chart.tracks.object[i].note_count > 0) {
         printf("Track %d\n", i + 10);

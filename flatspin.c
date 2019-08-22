@@ -1,9 +1,41 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
+#include <math.h>
 #include <stdio.h>
 
 #define GLSL(__source) "#version 150 core\n" #__source
+
+#define _MAX_VERTICES   4096
+static float _vertices[_MAX_VERTICES][5];
+static int _vertices_count;
+
+static void flatspin_update();
+
+static inline void add_vertex(float x, float y, float r, float g, float b)
+{
+    if (_vertices_count >= _MAX_VERTICES) {
+        fprintf(stderr, "> < Too many vertices!");
+        return;
+    }
+    _vertices[_vertices_count][0] = x;
+    _vertices[_vertices_count][1] = y;
+    _vertices[_vertices_count][2] = r;
+    _vertices[_vertices_count][3] = g;
+    _vertices[_vertices_count++][4] = b;
+}
+
+static inline void add_rect(
+    float x, float y, float w, float h,
+    float r, float g, float b)
+{
+    add_vertex(x, y, r, g, b);
+    add_vertex(x + w, y, r, g, b);
+    add_vertex(x + w, y + h, r, g, b);
+    add_vertex(x, y, r, g, b);
+    add_vertex(x + w, y + h, r, g, b);
+    add_vertex(x, y + h, r, g, b);
+}
 
 static inline GLuint load_shader(GLenum type, const char *source)
 {
@@ -64,13 +96,6 @@ int main()
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
 
-    float v[][5] = {
-        {0.0f, 0.5f, 1.0f, 1.0f, 0.9f},
-        {0.5f, -0.5f, 1.0f, 0.9f, 1.0f},
-        {-0.5f, -0.5f, 1.0f, 0.4f, 0.2f}
-    };
-    glBufferData(GL_ARRAY_BUFFER, sizeof v, v, GL_STREAM_DRAW);
-
     const char *vshader_source = GLSL(
         in vec2 ppp;
         in vec3 qwq;
@@ -107,7 +132,7 @@ int main()
 
     GLuint qwq_attrib_index = glGetAttribLocation(prog, "qwq");
     glEnableVertexAttribArray(qwq_attrib_index);
-    glVertexAttribPointer(qwq_attrib_index, 2, GL_FLOAT, GL_FALSE,
+    glVertexAttribPointer(qwq_attrib_index, 3, GL_FLOAT, GL_FALSE,
         5 * sizeof(float), (void *)(2 * sizeof(float)));
 
     // -- Event/render loop --
@@ -115,11 +140,27 @@ int main()
     while (!glfwWindowShouldClose(window)) {
         glClearColor(0.15f, 0.1f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        flatspin_update();
+
+        glBufferData(GL_ARRAY_BUFFER,
+            _vertices_count * 5 * sizeof(float), _vertices, GL_STREAM_DRAW);
+        glDrawArrays(GL_TRIANGLES, 0, _vertices_count);
+
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
     glfwTerminate();
     return 0;
+}
+
+static void flatspin_update()
+{
+    _vertices_count = 0;
+    float ovo = sin(glfwGetTime()) * -0.2f + 0.6f;
+    add_vertex(0.0f, 0.5f, 1.0f, 1.0f, 0.3f);
+    add_vertex(0.5f, -0.5f, 1.0f, 0.9f, 0.4f);
+    add_vertex(-0.5f, -0.5f, 1.0f, ovo, 0.3f);
+    add_rect(-0.1f, -0.7f, 0.2f, 0.2f, 1.0f, 0.5f, 0.3f);
 }

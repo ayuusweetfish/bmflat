@@ -349,20 +349,35 @@ static void flatspin_update(float dt)
     if (keys[0] == GLFW_PRESS && keys[1] == GLFW_RELEASE) {
         // Up: play pos+
         play_pos += dt * 288 / (scroll_speed / SS_INITIAL) * mul;
+        playing = false;
     } else if (keys[1] == GLFW_PRESS && keys[0] == GLFW_RELEASE) {
         // Down: play pos-
         play_pos -= dt * 288 / (scroll_speed / SS_INITIAL) * mul;
+        playing = false;
     }
+
+    bool play_started = false;
 
     if (keys[4] == GLFW_PRESS && keys_prev[4] == GLFW_RELEASE) {
         // Space: start/stop
-       playing = !playing; 
+       play_started = playing = !playing; 
     }
 
     if (keys[5] == GLFW_PRESS && keys_prev[5] == GLFW_RELEASE) {
         // Enter: restart/stop
         if (!playing) play_pos = 0;
-        playing = !playing;
+        play_started = playing = !playing;
+    }
+
+    if (play_started) {
+        // Current BPM needs to be updated
+        // BGA needs an update as well, but our application doesn't display BGAs
+        current_bpm = chart.meta.init_tempo;
+        for (int i = 0; i < seq.event_count; i++) {
+            struct bm_event ev = seq.events[i];
+            if (ev.pos > play_pos) break;
+            if (ev.type == BM_TEMPO_CHANGE) current_bpm = ev.value_f;
+        }
     }
 
     memcpy(keys_prev, keys, sizeof keys);
@@ -374,18 +389,6 @@ static void flatspin_update(float dt)
     // All events with positions > last_pos and <= play_pos are triggered
     static float last_play_pos = 0;
     if (playing) play_pos += dt * current_bpm * (48.0f / 60.0f);
-
-    if (play_pos < last_play_pos) {
-        // Current BPM needs to be updated
-        // BGA needs an update as well, but our application doesn't display BGAs
-        // TODO: ...
-        current_bpm = chart.meta.init_tempo;
-        for (int i = 0; i < seq.event_count; i++) {
-            struct bm_event ev = seq.events[i];
-            if (ev.pos > play_pos) break;
-            if (ev.type == BM_TEMPO_CHANGE) current_bpm = ev.value_f;
-        }
-    }
 
     // TODO: ...
     for (int i = 0; i < seq.event_count; i++) {

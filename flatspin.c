@@ -366,9 +366,19 @@ static int flatspin_init()
         track_wave[i] = -1;
         track_wave_pos[i] = 0;
     }
-    track_wave[0] = 1;
 
     return 0;
+}
+
+static inline int track_index(int id)
+{
+    if (id == 16)
+        return 0;
+    else if (id >= 11 && id <= 19 && id != 17)
+        return (id < 17 ? id - 10 : id - 12);
+    else if (id <= 0)
+        return 8 - id;
+    else return -1;
 }
 
 static inline void track_attr(
@@ -482,7 +492,12 @@ static void flatspin_update(float dt)
                 current_bpm = ev.value_f;
                 break;
             case BM_NOTE:
-                printf("%d %d\n", ev.track, ev.value);
+            case BM_NOTE_LONG:
+                track_wave[track_index(ev.track)] = ev.value;
+                track_wave_pos[track_index(ev.track)] = 0;
+                break;
+            case BM_NOTE_OFF:
+                track_wave[track_index(ev.track)] = -1;
                 break;
             default: break;
             }

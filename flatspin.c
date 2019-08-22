@@ -6,6 +6,7 @@
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
 #define GLSL(__source) "#version 150 core\n" #__source
 
@@ -14,7 +15,7 @@ static float _vertices[_MAX_VERTICES][5];
 static int _vertices_count;
 
 static int flatspin_init();
-static void flatspin_update();
+static void flatspin_update(float dt);
 
 static const char *flatspin_bmspath;
 static const char *flatspin_basepath;
@@ -70,6 +71,8 @@ static inline GLuint load_shader(GLenum type, const char *source)
     return shader_id;
 }
 
+static GLFWwindow *window; 
+
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
@@ -106,7 +109,7 @@ int main(int argc, char *argv[])
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-    GLFWwindow *window = glfwCreateWindow(960, 540, "bmflatspin", NULL, NULL);
+    window = glfwCreateWindow(960, 540, "bmflatspin", NULL, NULL);
     if (window == NULL) {
         fprintf(stderr, "> <  Cannot create GLFW window\n");
         return 2;
@@ -171,11 +174,15 @@ int main(int argc, char *argv[])
 
     // -- Event/render loop --
 
+    float last_time = 0, cur_time;
+
     while (!glfwWindowShouldClose(window)) {
         glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        flatspin_update();
+        cur_time = glfwGetTime();
+        flatspin_update(cur_time - last_time);
+        last_time = cur_time;
 
         glBufferData(GL_ARRAY_BUFFER,
             _vertices_count * 5 * sizeof(float), _vertices, GL_STREAM_DRAW);
@@ -228,6 +235,28 @@ static float fwd_range;
 static float bwd_range;
 #define Y_POS(__pos)    (((__pos) - play_pos) * scroll_speed + HITLINE_POS)
 
+static float delta_ss_rate; // For easing of scroll speed changes
+static float delta_ss_time;
+
+static inline void delta_ss_step(float dt)
+{
+    if (delta_ss_time <= 0) return;
+    if (dt > delta_ss_time) dt = delta_ss_time;
+    scroll_speed += delta_ss_rate * dt;
+    delta_ss_time -= dt;
+    if (scroll_speed < 0.1f / 48) scroll_speed = 0.1f / 48;
+    if (scroll_speed > 1.0f / 48) scroll_speed = 1.0f / 48;
+    fwd_range = (1 - HITLINE_POS) / scroll_speed;
+    bwd_range = (HITLINE_POS + 1) / scroll_speed;
+}
+
+static inline void delta_ss_submit(float delta, float time)
+{
+    float total_delta = delta + delta_ss_rate * delta_ss_time;
+    delta_ss_rate = total_delta / time;
+    delta_ss_time = time;
+}
+
 static int flatspin_init()
 {
     char *src = read_file(flatspin_bmspath);
@@ -246,6 +275,8 @@ static int flatspin_init()
     scroll_speed = 0.2f / 48;   // Screen Y units per 1/48 beat
     fwd_range = (1 - HITLINE_POS) / scroll_speed;
     bwd_range = (HITLINE_POS + 1) / scroll_speed;
+
+    delta_ss_rate = delta_ss_time = 0;
 }
 
 static inline void track_attr(
@@ -281,8 +312,38 @@ static inline void draw_track_background(int id)
     add_rect(x, -1, w, 2, r * 0.3, g * 0.3, b * 0.3, false);
 }
 
-static void flatspin_update()
+static void flatspin_update(float dt)
 {
+    // -- Events --
+
+    static int keys_prev[4] = {
+        GLFW_RELEASE, GLFW_RELEASE, GLFW_RELEASE, GLFW_RELEASE
+    };
+    int keys[4] = {
+        glfwGetKey(window, GLFW_KEY_UP),
+        glfwGetKey(window, GLFW_KEY_DOWN),
+        glfwGetKey(window, GLFW_KEY_LEFT),
+        glfwGetKey(window, GLFW_KEY_RIGHT)
+    };
+
+    if (keys[2] == GLFW_PRESS && keys_prev[2] == GLFW_RELEASE) {
+        delta_ss_submit(-0.05f / 48, 0.1);
+    } else if (keys[3] == GLFW_PRESS && keys_prev[3] == GLFW_RELEASE) {
+        delta_ss_submit(+0.05f / 48, 0.1);
+    }
+
+    if (keys[0] == GLFW_PRESS && keys[1] == GLFW_RELEASE) {
+        play_pos += dt * 384 / (scroll_speed / (0.2f / 48));
+    } else if (keys[1] == GLFW_PRESS && keys[0] == GLFW_RELEASE) {
+        play_pos -= dt * 384 / (scroll_speed / (0.2f / 48));
+    }
+
+    memcpy(keys_prev, keys, sizeof keys);
+
+    // -- Drawing --
+
+    delta_ss_step(dt);
+
     _vertices_count = 0;
 
     for (int i = 11; i <= 19; i++)

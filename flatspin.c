@@ -229,14 +229,15 @@ static struct bm_seq seq;
 
 static float unit;
 
-static bool playing = false;
-static float current_bpm;
-
 static float play_pos;
 static float scroll_speed;
 static float fwd_range;
 static float bwd_range;
 #define Y_POS(__pos)    (((__pos) - play_pos) * scroll_speed + HITLINE_POS)
+
+static bool playing = false;
+static float current_bpm;   // Will be re-initialized on playback start
+static int event_ptr;
 
 static float delta_ss_rate; // For easing of scroll speed changes
 static float delta_ss_time;
@@ -277,8 +278,6 @@ static int flatspin_init()
 
     unit = 2.0f / (SCRATCH_WIDTH + KEY_WIDTH * 7 +
         BGTRACK_WIDTH * chart.tracks.background_count);
-
-    current_bpm = chart.meta.init_tempo;
 
     play_pos = 0;
     scroll_speed = SS_INITIAL;  // Screen Y units per 1/48 beat
@@ -372,12 +371,15 @@ static void flatspin_update(float dt)
     if (play_started) {
         // Current BPM needs to be updated
         // BGA needs an update as well, but our application doesn't display BGAs
+        // XXX: Can be replaced with binary search
         current_bpm = chart.meta.init_tempo;
-        for (int i = 0; i < seq.event_count; i++) {
+        int i;
+        for (i = 0; i < seq.event_count; i++) {
             struct bm_event ev = seq.events[i];
-            if (ev.pos > play_pos) break;
+            if (ev.pos >= play_pos) break;
             if (ev.type == BM_TEMPO_CHANGE) current_bpm = ev.value_f;
         }
+        event_ptr = i;
     }
 
     memcpy(keys_prev, keys, sizeof keys);
@@ -386,23 +388,23 @@ static void flatspin_update(float dt)
 
     delta_ss_step(dt);
 
-    // All events with positions > last_pos and <= play_pos are triggered
-    static float last_play_pos = 0;
-    if (playing) play_pos += dt * current_bpm * (48.0f / 60.0f);
+    if (playing) {
+        play_pos += dt * current_bpm * (48.0f / 60.0f);
 
-    // TODO: ...
-    for (int i = 0; i < seq.event_count; i++) {
-        struct bm_event ev = seq.events[i];
-        if (ev.pos > last_play_pos && ev.pos <= play_pos)
+        while (event_ptr < seq.event_count && seq.events[event_ptr].pos <= play_pos) {
+            struct bm_event ev = seq.events[event_ptr];
             switch (ev.type) {
             case BM_TEMPO_CHANGE:
                 current_bpm = ev.value_f;
                 break;
+            case BM_NOTE:
+                printf("%d %d\n", ev.track, ev.value);
+                break;
             default: break;
             }
+            event_ptr++;
+        }
     }
-
-    last_play_pos = play_pos;
 
     // -- Drawing --
 
@@ -414,8 +416,13 @@ static void flatspin_update(float dt)
         draw_track_background(-i);
 
     int start = 0;
-    // TODO: Use binary search
-    while (start < seq.event_count && seq.events[start].pos < play_pos - bwd_range) start++;
+    int lo = -1, hi = seq.event_count, mid;
+    while (lo < hi - 1) {
+        mid = (lo + hi) >> 1;
+        if (seq.events[mid].pos < play_pos - bwd_range) lo = mid;
+        else hi = mid;
+    }
+    start = hi;
 
     for (int i = start; i < seq.event_count && seq.events[i].pos <= play_pos + fwd_range; i++) {
         if (seq.events[i].type == BM_BARLINE) {

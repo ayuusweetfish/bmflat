@@ -546,6 +546,10 @@ void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
                 event.type = BM_NOTE_LONG;
                 event.value_a = pos(note) - event.pos;
                 add_event(seq, &event, &cap);
+                // Add a pair of events to simplify time-range queries
+                event.pos = pos(note);
+                event.type = BM_NOTE_OFF;
+                add_event(seq, &event, &cap);
             } else {
                 event.pos = pos(note);
                 event.track = i + 10;

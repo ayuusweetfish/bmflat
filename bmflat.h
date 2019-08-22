@@ -73,6 +73,7 @@ enum bm_event_type {
     BM_STOP,                // value = duration
     BM_NOTE,                // value = index
     BM_NOTE_LONG,           // value = index, value_a = duration
+    BM_NOTE_OFF,            // value = index, value_a = duration
 };
 
 struct bm_event {

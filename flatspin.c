@@ -229,6 +229,8 @@ static struct bm_seq seq;
 
 static float unit;
 
+static bool playing = false;
+
 static float play_pos;
 static float scroll_speed;
 static float fwd_range;
@@ -320,33 +322,52 @@ static void flatspin_update(float dt)
 {
     // -- Events --
 
-    static int keys_prev[4] = {
-        GLFW_RELEASE, GLFW_RELEASE, GLFW_RELEASE, GLFW_RELEASE
-    };
-    int keys[4] = {
+    static int keys_prev[6] = { GLFW_RELEASE }; // GLFW_RELEASE == 0
+    int keys[6] = {
         glfwGetKey(window, GLFW_KEY_UP),
         glfwGetKey(window, GLFW_KEY_DOWN),
         glfwGetKey(window, GLFW_KEY_LEFT),
-        glfwGetKey(window, GLFW_KEY_RIGHT)
+        glfwGetKey(window, GLFW_KEY_RIGHT),
+        glfwGetKey(window, GLFW_KEY_SPACE),
+        glfwGetKey(window, GLFW_KEY_ENTER)
     };
 
     if (keys[2] == GLFW_PRESS && keys_prev[2] == GLFW_RELEASE) {
+        // Left: scroll-
         delta_ss_submit(-SS_DELTA, 0.1);
     } else if (keys[3] == GLFW_PRESS && keys_prev[3] == GLFW_RELEASE) {
+        // Right: scroll+
         delta_ss_submit(+SS_DELTA, 0.1);
     }
 
     if (keys[0] == GLFW_PRESS && keys[1] == GLFW_RELEASE) {
+        // Up: play pos+
         play_pos += dt * 384 / (scroll_speed / SS_INITIAL);
     } else if (keys[1] == GLFW_PRESS && keys[0] == GLFW_RELEASE) {
+        // Down: play pos-
         play_pos -= dt * 384 / (scroll_speed / SS_INITIAL);
+    }
+
+    if (keys[4] == GLFW_PRESS && keys_prev[4] == GLFW_RELEASE) {
+        // Space: start/stop
+       playing = !playing; 
+    }
+
+    if (keys[5] == GLFW_PRESS && keys_prev[5] == GLFW_RELEASE) {
+        // Enter: restart/stop
+        if (!playing) play_pos = 0;
+        playing = !playing;
     }
 
     memcpy(keys_prev, keys, sizeof keys);
 
-    // -- Drawing --
+    // -- Updates --
 
     delta_ss_step(dt);
+
+    if (playing) play_pos += dt * 192;
+
+    // -- Drawing --
 
     _vertices_count = 0;
 

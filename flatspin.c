@@ -1,6 +1,8 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
+#include "bmflat.h"
+
 #include <math.h>
 #include <stdio.h>
 
@@ -10,7 +12,14 @@
 static float _vertices[_MAX_VERTICES][5];
 static int _vertices_count;
 
+static int flatspin_init();
 static void flatspin_update();
+
+static const char *flatspin_bmspath;
+static const char *flatspin_basepath;
+
+static struct bm_chart chart;
+static struct bm_seq seq;
 
 static inline void add_vertex(float x, float y, float r, float g, float b)
 {
@@ -60,8 +69,29 @@ static inline GLuint load_shader(GLenum type, const char *source)
     return shader_id;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
+    if (argc < 2) {
+        fprintf(stderr, "=~= Usage: %s <path to BMS>\n", argv[0]);
+        return 0;
+    }
+
+    // Extract path and executable path
+    flatspin_bmspath = argv[1];
+    int p = -1;
+    for (int i = 0; flatspin_bmspath[i] != '\0'; i++)
+        if (flatspin_bmspath[i] == '/' || flatspin_bmspath[i] == '\\') p = i;
+    if (p == -1) {
+        flatspin_basepath = "./";
+    } else {
+        flatspin_basepath = (char *)malloc(p + 1);
+        memcpy(flatspin_basepath, flatspin_bmspath, p + 1);
+    }
+    fprintf(stderr, "^ ^ Asset search path: %s\n", flatspin_basepath);
+
+    int result = flatspin_init();
+    if (result != 0) return result;
+
     // -- Initialization --
 
     if (!glfwInit()) return -1;
@@ -155,12 +185,38 @@ int main()
     return 0;
 }
 
+static char *read_file(const char *path)
+{
+    FILE *f = fopen(path, "r");
+    if (f == NULL) return NULL;
+
+    char *buf = NULL;
+
+    do {
+        if (fseek(f, 0, SEEK_END) != 0) break;
+        long len = ftell(f);
+        if (fseek(f, 0, SEEK_SET) != 0) break;
+        if ((buf = (char *)malloc(len)) == NULL) break;
+        if (fread(buf, len, 1, f) != 1) { free(buf); buf = NULL; break; }
+    } while (0);
+
+    fclose(f);
+    return buf;
+}
+
+static int flatspin_init()
+{
+    char *src = read_file(flatspin_bmspath);
+    if (src == NULL) {
+        fprintf(stderr, "> < Cannot load BMS file %s\n", flatspin_bmspath);
+        return 1;
+    }
+
+    int msgs = bm_load(&chart, src);
+    bm_to_seq(&chart, &seq);
+}
+
 static void flatspin_update()
 {
     _vertices_count = 0;
-    float ovo = sin(glfwGetTime()) * -0.2f + 0.6f;
-    add_vertex(0.0f, 0.5f, 1.0f, 1.0f, 0.3f);
-    add_vertex(0.5f, -0.5f, 1.0f, 0.9f, 0.4f);
-    add_vertex(-0.5f, -0.5f, 1.0f, ovo, 0.3f);
-    add_rect(-0.1f, -0.7f, 0.2f, 0.2f, 1.0f, 0.5f, 0.3f);
 }

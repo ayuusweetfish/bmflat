@@ -24,7 +24,7 @@ static struct bm_seq seq;
 static inline void add_vertex(float x, float y, float r, float g, float b)
 {
     if (_vertices_count >= _MAX_VERTICES) {
-        fprintf(stderr, "> < Too many vertices!");
+        fprintf(stderr, "> <  Too many vertices!");
         return;
     }
     _vertices[_vertices_count][0] = x;
@@ -56,13 +56,13 @@ static inline GLuint load_shader(GLenum type, const char *source)
     glGetShaderiv(shader_id, GL_COMPILE_STATUS, &status);
     char msg_buf[1024];
     glGetShaderInfoLog(shader_id, sizeof(msg_buf) - 1, NULL, msg_buf);
-    fprintf(stderr, "OvO Compilation log for %s shader\n",
+    fprintf(stderr, "OvO  Compilation log for %s shader\n",
         (type == GL_VERTEX_SHADER ? "vertex" :
          type == GL_FRAGMENT_SHADER ? "fragment" : "unknown (!)"));
     fputs(msg_buf, stderr);
-    fprintf(stderr, "=v= End\n");
+    fprintf(stderr, "=v=  End\n");
     if (status != GL_TRUE) {
-        fprintf(stderr, "> < Shader compilation failed\n");
+        fprintf(stderr, "> <  Shader compilation failed\n");
         return 0;
     }
 
@@ -72,7 +72,7 @@ static inline GLuint load_shader(GLenum type, const char *source)
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
-        fprintf(stderr, "=~= Usage: %s <path to BMS>\n", argv[0]);
+        fprintf(stderr, "=~=  Usage: %s <path to BMS>\n", argv[0]);
         return 0;
     }
 
@@ -87,14 +87,17 @@ int main(int argc, char *argv[])
         flatspin_basepath = (char *)malloc(p + 1);
         memcpy(flatspin_basepath, flatspin_bmspath, p + 1);
     }
-    fprintf(stderr, "^ ^ Asset search path: %s\n", flatspin_basepath);
+    fprintf(stderr, "^ ^  Asset search path: %s\n", flatspin_basepath);
 
     int result = flatspin_init();
     if (result != 0) return result;
 
     // -- Initialization --
 
-    if (!glfwInit()) return -1;
+    if (!glfwInit()) {
+        fprintf(stderr, "> <  Cannot initialize GLFW\n");
+        return 2;
+    }
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
@@ -104,8 +107,8 @@ int main(int argc, char *argv[])
 
     GLFWwindow *window = glfwCreateWindow(960, 540, "bmflatspin", NULL, NULL);
     if (window == NULL) {
-        fprintf(stderr, "> < Cannot initialize GLFW\n");
-        return -1;
+        fprintf(stderr, "> <  Cannot create GLFW window\n");
+        return 2;
     }
 
     glfwMakeContextCurrent(window);
@@ -113,8 +116,8 @@ int main(int argc, char *argv[])
 
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK) {
-        fprintf(stderr, "> < Cannot initialize GLEW\n");
-        return -1;
+        fprintf(stderr, "> <  Cannot initialize GLEW\n");
+        return 2;
     }
 
     // -- Resource allocation --
@@ -208,7 +211,7 @@ static int flatspin_init()
 {
     char *src = read_file(flatspin_bmspath);
     if (src == NULL) {
-        fprintf(stderr, "> < Cannot load BMS file %s\n", flatspin_bmspath);
+        fprintf(stderr, "> <  Cannot load BMS file %s\n", flatspin_bmspath);
         return 1;
     }
 

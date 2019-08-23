@@ -253,7 +253,7 @@ static ma_uint64 pcm_len[BM_INDEX_MAX] = { 0 };
 static int track_wave[TOTAL_TRACKS];
 static ma_uint64 track_wave_pos[TOTAL_TRACKS];
 
-#define RMS_WINDOW_SIZE 20
+#define RMS_WINDOW_SIZE 5
 static float msq_gframe[TOTAL_TRACKS][RMS_WINDOW_SIZE] = {{ 0 }};
 static int msq_ptr[TOTAL_TRACKS] = { 0 };
 static float msq_sum[TOTAL_TRACKS] = { 0 };
@@ -428,7 +428,9 @@ static inline void draw_track_background(int id)
 {
     float x, w, r, g, b;
     track_attr(id, &x, &w, &r, &g, &b);
-    add_rect(x, -1, w, 2, r * 0.3, g * 0.3, b * 0.3, false);
+    float rms = sqrtf(msq_sum[track_index(id)] / RMS_WINDOW_SIZE);
+    float l = 0.3 + 0.5 * sqrtf(rms);
+    add_rect(x, -1, w, 2, r * l, g * l, b * l, false);
 }
 
 static void flatspin_update(float dt)
@@ -543,12 +545,14 @@ static void flatspin_update(float dt)
             if (fabs(msq_sum[index]) < 1e-5) msq_sum[index] = 0; \
             msq_ptr[index] = (msq_ptr[index] + 1) % RMS_WINDOW_SIZE; \
             msq_accum[index] = 0; \
-        } while (0);
+        } while (0)
 
-        for (int i = 11; i <= 19; i++) if (i != 17) process_track(i);
+        for (int i = 11; i <= 19; i++)
+            if (i != 17) process_track(i);
+        for (int i = 0; i < chart.tracks.background_count; i++)
+            process_track(-i);
 
         msq_accum_size = 0;
-        printf("%.4f\n", sqrtf(msq_sum[1] / RMS_WINDOW_SIZE));
     }
 
     ma_mutex_unlock(&audio_device.lock);

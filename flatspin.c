@@ -641,6 +641,13 @@ static void flatspin_update(float dt)
         }
     }
 
+    if (play_pos < 0) {
+        play_pos = 0;
+    } else if (play_pos > seq.events[seq.event_count - 1].pos) {
+        play_pos = seq.events[seq.event_count - 1].pos;
+        playing = false;
+    }
+
     // Audio RMS data
 
     if (msq_accum_size != 0) {
@@ -684,13 +691,24 @@ static void flatspin_update(float dt)
     }
     start = hi;
 
-    char s[5];
+    char s[12];
     for (int i = start; i < seq.event_count && seq.events[i].pos <= play_pos + fwd_range; i++) {
         if (seq.events[i].type == BM_BARLINE) {
-            add_rect(-1, Y_POS(seq.events[i].pos), 2, 0.01, 0.4, 0.4, 0.4, false);
-            sprintf(s, "#%03d", seq.events[i].value);
-            add_text(1 - TEXT_W * 4, Y_POS(seq.events[i].pos) + TEXT_H / 8,
-                0.4, 0.4, 0.4, 1.0, s);
+            if (i == seq.event_count - 1) {
+                add_rect(-1, Y_POS(seq.events[i].pos), 2, 0.01, 0.6, 0.7, 0.4, false);
+                add_text(1 - TEXT_W * 11.5, Y_POS(seq.events[i].pos) + TEXT_H / 8,
+                    0.6, 0.7, 0.4, 1.0, "Fin \\(^ ^)/");
+            } else {
+                add_rect(-1, Y_POS(seq.events[i].pos), 2, 0.01, 0.4, 0.4, 0.4, false);
+                sprintf(s, "#%03d", seq.events[i].value);
+                add_text(1 - TEXT_W * 4.5, Y_POS(seq.events[i].pos) + TEXT_H / 8,
+                    0.4, 0.4, 0.4, 1.0, s);
+            }
+        } else if (seq.events[i].type == BM_TEMPO_CHANGE) {
+            add_rect(-1, Y_POS(seq.events[i].pos), 2, 0.01, 0.5, 0.5, 0.4, false);
+            sprintf(s, "BPM %06.2f", seq.events[i].value_f);
+            add_text(1 - TEXT_W * 10.5, Y_POS(seq.events[i].pos) - TEXT_H * 9 / 8,
+                0.5, 0.5, 0.4, 1.0, s);
         }
     }
 

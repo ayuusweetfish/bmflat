@@ -832,20 +832,30 @@ static void flatspin_update(float dt)
 
     char s[12];
     for (int i = start; i < seq.event_count && seq.events[i].pos <= play_pos + fwd_range; i++) {
+        float bpm = -1;
         if (seq.events[i].type == BM_BARLINE) {
             if (i == seq.event_count - 1) {
                 add_rect(-1, Y_POS(seq.events[i].pos), 2, 0.01, 0.6, 0.7, 0.4, false);
                 add_text(1 - TEXT_W * 11.5, Y_POS(seq.events[i].pos) + TEXT_H / 8,
                     0.6, 0.7, 0.4, 1.0, "Fin \\(^ ^)/");
             } else {
+                // For bar #000, this line will be covered by
+                // the BPM change line, hence no need to change colour
                 add_rect(-1, Y_POS(seq.events[i].pos), 2, 0.01, 0.4, 0.4, 0.4, false);
                 sprintf(s, "#%03d", seq.events[i].value);
                 add_text(1 - TEXT_W * 4.5, Y_POS(seq.events[i].pos) + TEXT_H / 8,
-                    0.4, 0.4, 0.4, 1.0, s);
+                    i == 0 ? 0.7 : 0.4,
+                    i == 0 ? 0.6 : 0.4,
+                    0.4,
+                    1.0, s);
+                if (i == 0) bpm = chart.meta.init_tempo;
             }
-        } else if (seq.events[i].type == BM_TEMPO_CHANGE) {
+        }
+        if (seq.events[i].type == BM_TEMPO_CHANGE)
+            bpm = seq.events[i].value_f;
+        if (bpm != -1) {
             add_rect(-1, Y_POS(seq.events[i].pos), 2, 0.01, 0.5, 0.5, 0.4, false);
-            sprintf(s, "BPM %06.2f", seq.events[i].value_f);
+            sprintf(s, "BPM %06.2f", bpm);
             add_text(1 - TEXT_W * 10.5, Y_POS(seq.events[i].pos) - TEXT_H * 9 / 8,
                 0.5, 0.5, 0.4, 1.0, s);
         }

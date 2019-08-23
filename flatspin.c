@@ -728,7 +728,8 @@ static void flatspin_update(float dt)
             if (ev.type == BM_TEMPO_CHANGE) current_bpm = ev.value_f;
         }
         event_ptr = i;
-    } else if (play_cut) {
+    }
+    if (play_cut || play_started) {
         // Stop all sounds
         ma_mutex_lock(&audio_device.lock);
         for (int i = 0; i < BM_INDEX_MAX; i++) pcm_track[i] = -1;

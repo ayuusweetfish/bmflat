@@ -59,6 +59,7 @@ static inline void add_note(struct bm_track *track, short bar, float beat, short
             realloc(track->notes, track->note_cap * sizeof(struct bm_note));
     }
     track->notes[track->note_count].bar = bar;
+    track->notes[track->note_count].hold = false;
     track->notes[track->note_count].beat = beat;
     track->notes[track->note_count++].value = value;
 }

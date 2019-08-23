@@ -425,8 +425,8 @@ static inline void delta_ss_step(float dt)
     delta_ss_time -= dt;
     if (scroll_speed < SS_MIN) scroll_speed = SS_MIN;
     if (scroll_speed > SS_MAX) scroll_speed = SS_MAX;
-    fwd_range = (1 - HITLINE_POS) / scroll_speed;
-    bwd_range = (HITLINE_POS + 1) / scroll_speed;
+    fwd_range = (1.1 - HITLINE_POS) / scroll_speed;
+    bwd_range = (HITLINE_POS + 1.1) / scroll_speed;
 }
 
 static inline void delta_ss_submit(float delta, float time)
@@ -455,8 +455,8 @@ static int flatspin_init()
 
     play_pos = 0;
     scroll_speed = SS_INITIAL;  // Screen Y units per 1/48 beat
-    fwd_range = (1 - HITLINE_POS) / scroll_speed;
-    bwd_range = (HITLINE_POS + 1) / scroll_speed;
+    fwd_range = (1.1 - HITLINE_POS) / scroll_speed;
+    bwd_range = (HITLINE_POS + 1.1) / scroll_speed;
 
     delta_ss_rate = delta_ss_time = 0;
 
@@ -514,9 +514,9 @@ static inline void track_attr(
         int i = (id < 17 ? id - 11 : id - 13);
         *x = -1.0f + unit * (SCRATCH_WIDTH + KEY_WIDTH * i);
         *w = unit * KEY_WIDTH;
-        *r = i % 2 == 0 ? 1.0f : 0.5f;
-        *g = i % 2 == 0 ? 1.0f : 0.5f;
-        *b = i % 2 == 0 ? 1.0f : 1.0f;
+        *r = i % 2 == 0 ? 0.85f : 0.5f;
+        *g = i % 2 == 0 ? 0.85f : 0.5f;
+        *b = i % 2 == 0 ? 0.85f : 1.0f;
     } else if (id <= 0) {
         int i = -id;
         *x = -1.0f + unit * (SCRATCH_WIDTH + KEY_WIDTH * 7 + BGTRACK_WIDTH * i);
@@ -532,7 +532,7 @@ static inline void draw_track_background(int id)
     float x, w, r, g, b;
     track_attr(id, &x, &w, &r, &g, &b);
     float rms = sqrtf(msq_sum[track_index(id)] / RMS_WINDOW_SIZE);
-    float l = 0.3 + 0.5 * sqrtf(rms);
+    float l = 0.15 + 0.75 * sqrtf(rms);
     add_rect(x, -1, w, 2, r * l, g * l, b * l, false);
 }
 

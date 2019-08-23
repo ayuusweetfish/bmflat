@@ -11,7 +11,7 @@ struct bm_metadata {
     char *title;
     char *artist;
     char *subartist;
-    int init_tempo;
+    float init_tempo;
     int play_level;
     int judge_rank;
     int gauge_total;

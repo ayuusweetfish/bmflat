@@ -299,8 +299,8 @@ int bm_load(struct bm_chart *chart, const char *_source)
                 checked_strdup(chart->meta.subartist,
                     "Multiple SUBARTIST commands, overwritten");
             } else if (strcmp(s, "BPM") == 0) {
-                checked_parse_int(chart->meta.init_tempo,
-                    1, 999,
+                checked_parse_float(chart->meta.init_tempo,
+                    1.0, 999.0,
                     "Multiple BPM commands, overwritten");
             } else if (strcmp(s, "PLAYLEVEL") == 0) {
                 checked_parse_int(chart->meta.play_level,

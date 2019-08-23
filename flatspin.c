@@ -101,6 +101,23 @@ static inline void add_text(
     }
 }
 
+static inline int add_text_w(
+    float x, float y, float w, float r, float g, float b, const char *s)
+{
+    int lines = 1;
+    float delta_x = 0;
+    for (; *s != '\0'; s++) {
+        add_char(x + delta_x, y, r, g, b, *s);
+        delta_x += TEXT_W;
+        if (delta_x + TEXT_W >= w) {
+            delta_x = 0;
+            lines++;
+            y -= TEXT_H;
+        }
+    }
+    return lines;
+}
+
 static inline GLuint load_shader(GLenum type, const char *source)
 {
     GLuint shader_id = glCreateShader(type);
@@ -322,6 +339,9 @@ static int msgs_count;
 static struct bm_chart chart;
 static struct bm_seq seq;
 
+#define MSGS_FADE_OUT_TIME  0.5
+static float msgs_show_time = -MSGS_FADE_OUT_TIME;
+
 static float *pcm[BM_INDEX_MAX] = { NULL };
 static ma_uint64 pcm_len[BM_INDEX_MAX] = { 0 };
 
@@ -422,6 +442,7 @@ static int flatspin_init()
 
     msgs_count = bm_load(&chart, src);
     bm_to_seq(&chart, &seq);
+    msgs_show_time = 10;
 
     unit = 2.0f / (SCRATCH_WIDTH + KEY_WIDTH * 7 +
         BGTRACK_WIDTH * chart.tracks.background_count);
@@ -576,9 +597,15 @@ static void flatspin_update(float dt)
         ma_mutex_unlock(&audio_device.lock);
     }
 
+    // Fade out log messages on any movement
+    if (play_pos != 0 && msgs_show_time > 0) msgs_show_time = 0;
+
     memcpy(keys_prev, keys, sizeof keys);
 
     // -- Updates --
+
+    if (msgs_show_time > -MSGS_FADE_OUT_TIME)
+        msgs_show_time -= dt;
 
     delta_ss_step(dt);
 
@@ -685,6 +712,24 @@ static void flatspin_update(float dt)
     }
 
     add_rect(-1, HITLINE_POS, 2, 0.01, 1.0, 0.7, 0.4, false);
+
+    // Messages from the parser
+    if (msgs_show_time > -MSGS_FADE_OUT_TIME) {
+        char s[10];
+        float y = 0.95 - TEXT_H * 1.75;
+        float line_w = 1.9 - TEXT_W * 5;
+        for (int i = 0; i < msgs_count; i++) {
+            if (bm_logs[i].line != -1) {
+                snprintf(s, sizeof s, "L%3d", bm_logs[i].line);
+                add_text(-0.95, y, 1.0, 1.0, 0.7, s);
+            } else {
+                add_char(-0.95 + TEXT_W * 3, y, 1.0, 1.0, 0.7, '>');
+            }
+            int lines = add_text_w(-0.95 + TEXT_W * 5, y,
+                line_w, 0.95, 0.95, 0.95, bm_logs[i].message);
+            y -= TEXT_H * (lines + 0.75);
+        }
+    }
 }
 
 // ffmpeg -f rawvideo -pix_fmt gray - -i font.png | hexdump -ve '1/1 "%.2x"' | fold -w96 | sed -e 's/00/0,/g' | sed -e 's/ff/1,/g'

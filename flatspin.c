@@ -249,9 +249,17 @@ static struct bm_seq seq;
 static float *pcm[BM_INDEX_MAX] = { NULL };
 static ma_uint64 pcm_len[BM_INDEX_MAX] = { 0 };
 
-#define TOTAL_TRACKS    (60 + BM_BGM_TRACKS)
+#define TOTAL_TRACKS    (8 + BM_BGM_TRACKS)
 static int track_wave[TOTAL_TRACKS];
 static ma_uint64 track_wave_pos[TOTAL_TRACKS];
+
+#define RMS_WINDOW_SIZE 20
+static float msq_gframe[TOTAL_TRACKS][RMS_WINDOW_SIZE] = {{ 0 }};
+static int msq_ptr[TOTAL_TRACKS] = { 0 };
+static float msq_sum[TOTAL_TRACKS] = { 0 };
+
+static int msq_accum_size = 0;
+static float msq_accum[TOTAL_TRACKS] = { 0 };
 
 #define SCRATCH_WIDTH   4
 #define KEY_WIDTH       3
@@ -290,12 +298,17 @@ static void audio_data_callback(
             int start = track_wave_pos[i];
             int j;
             for (j = 0; j < nframes && start + j < pcm_len[wave]; j++) {
-                output[j * 2] += pcm[wave][(start + j) * 2];
-                output[j * 2 + 1] += pcm[wave][(start + j) * 2 + 1];
+                float lsmp = pcm[wave][(start + j) * 2];
+                float rsmp = pcm[wave][(start + j) * 2 + 1];
+                output[j * 2] += lsmp;
+                output[j * 2 + 1] += rsmp;
+                msq_accum[i] += lsmp * lsmp + rsmp * rsmp;
             }
             track_wave_pos[i] += j;
         }
     }
+
+    msq_accum_size += nframes;
 
     ma_mutex_unlock(&device->lock);
 
@@ -491,10 +504,10 @@ static void flatspin_update(float dt)
 
     delta_ss_step(dt);
 
+    ma_mutex_lock(&audio_device.lock);
+
     if (playing) {
         play_pos += dt * current_bpm * (48.0f / 60.0f);
-
-        ma_mutex_lock(&audio_device.lock);
 
         while (event_ptr < seq.event_count && seq.events[event_ptr].pos <= play_pos) {
             struct bm_event ev = seq.events[event_ptr];
@@ -515,9 +528,30 @@ static void flatspin_update(float dt)
             }
             event_ptr++;
         }
-
-        ma_mutex_unlock(&audio_device.lock);
     }
+
+    // Audio RMS data
+
+    if (msq_accum_size != 0) {
+        #define process_track(__i) do { \
+            int index = track_index(__i); \
+            float z = msq_accum[index] / msq_accum_size; \
+            msq_sum[index] -= msq_gframe[index][msq_ptr[index]]; \
+            msq_gframe[index][msq_ptr[index]] = z; \
+            msq_sum[index] += z; \
+            /* Floating point errors may occur */ \
+            if (fabs(msq_sum[index]) < 1e-5) msq_sum[index] = 0; \
+            msq_ptr[index] = (msq_ptr[index] + 1) % RMS_WINDOW_SIZE; \
+            msq_accum[index] = 0; \
+        } while (0);
+
+        for (int i = 11; i <= 19; i++) if (i != 17) process_track(i);
+
+        msq_accum_size = 0;
+        printf("%.4f\n", sqrtf(msq_sum[1] / RMS_WINDOW_SIZE));
+    }
+
+    ma_mutex_unlock(&audio_device.lock);
 
     // -- Drawing --
 

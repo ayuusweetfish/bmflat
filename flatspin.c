@@ -370,10 +370,10 @@ static float *pcm[BM_INDEX_MAX] = { NULL };
 static ma_uint64 pcm_len[BM_INDEX_MAX] = { 0 };
 #define GAIN    0.5
 
-#define TOTAL_TRACKS    (8 + BM_BGM_TRACKS)
-static int track_wave[TOTAL_TRACKS];
-static ma_uint64 track_wave_pos[TOTAL_TRACKS];
+static int pcm_track[BM_INDEX_MAX];
+static ma_uint64 pcm_pos[BM_INDEX_MAX];
 
+#define TOTAL_TRACKS    (8 + BM_BGM_TRACKS)
 #define RMS_WINDOW_SIZE 5
 static float msq_gframe[TOTAL_TRACKS][RMS_WINDOW_SIZE] = {{ 0 }};
 static int msq_ptr[TOTAL_TRACKS] = { 0 };
@@ -414,19 +414,20 @@ static void audio_data_callback(
     ma_mutex_lock(&device->lock);
 
     ma_zero_pcm_frames(output, nframes, ma_format_f32, 2);
-    for (int i = 0; i < TOTAL_TRACKS; i++) {
-        int wave = track_wave[i];
-        if (wave != -1) {
-            int start = track_wave_pos[i];
+    for (int i = 0; i < BM_INDEX_MAX; i++) {
+        int track = pcm_track[i];
+        if (track != -1) {
+            int start = pcm_pos[i];
             int j;
-            for (j = 0; j < nframes && start + j < pcm_len[wave]; j++) {
-                float lsmp = pcm[wave][(start + j) * 2];
-                float rsmp = pcm[wave][(start + j) * 2 + 1];
+            for (j = 0; j < nframes && start + j < pcm_len[i]; j++) {
+                float lsmp = pcm[i][(start + j) * 2];
+                float rsmp = pcm[i][(start + j) * 2 + 1];
                 output[j * 2] += lsmp * GAIN;
                 output[j * 2 + 1] += rsmp * GAIN;
-                msq_accum[i] += lsmp * lsmp + rsmp * rsmp;
+                msq_accum[track] += lsmp * lsmp + rsmp * rsmp;
             }
-            track_wave_pos[i] += j;
+            pcm_pos[i] += j;
+            if (pcm_pos[i] >= pcm_len[i]) pcm_track[i] = -1;
         }
     }
 
@@ -608,9 +609,9 @@ static int flatspin_init()
         }
     }
 
-    for (int i = 0; i < TOTAL_TRACKS; i++) {
-        track_wave[i] = -1;
-        track_wave_pos[i] = 0;
+    for (int i = 0; i < BM_INDEX_MAX; i++) {
+        pcm_track[i] = -1;
+        pcm_pos[i] = 0;
     }
 
     return 0;
@@ -730,7 +731,7 @@ static void flatspin_update(float dt)
     } else if (play_cut) {
         // Stop all sounds
         ma_mutex_lock(&audio_device.lock);
-        for (int i = 0; i < TOTAL_TRACKS; i++) track_wave[i] = -1;
+        for (int i = 0; i < BM_INDEX_MAX; i++) pcm_track[i] = -1;
         ma_mutex_unlock(&audio_device.lock);
     }
 
@@ -761,16 +762,12 @@ static void flatspin_update(float dt)
                 break;
             case BM_NOTE:
             case BM_NOTE_LONG:
-                track_wave[track_index(ev.track)] = ev.value;
-                track_wave_pos[track_index(ev.track)] = 0;
+                pcm_track[ev.value] = track_index(ev.track);
+                pcm_pos[ev.value] = 0;
                 // Create particles
                 track_attr(ev.track, &x, &w, &r, &g, &b);
                 add_particles_on_line(x, w, r, g, b);
                 break;
-            // Not really
-            //case BM_NOTE_OFF:
-            //    track_wave[track_index(ev.track)] = -1;
-            //    break;
             default: break;
             }
             event_ptr++;

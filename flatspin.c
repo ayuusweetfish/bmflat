@@ -651,7 +651,7 @@ static void flatspin_update(float dt)
             msq_gframe[index][msq_ptr[index]] = z; \
             msq_sum[index] += z; \
             /* Floating point errors may occur */ \
-            if (fabs(msq_sum[index]) < 1e-5) msq_sum[index] = 0; \
+            if (msq_sum[index] < 1e-4) msq_sum[index] = 0; \
             msq_ptr[index] = (msq_ptr[index] + 1) % RMS_WINDOW_SIZE; \
             msq_accum[index] = 0; \
         } while (0)

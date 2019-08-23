@@ -312,7 +312,7 @@ int bm_load(struct bm_chart *chart, const char *_source)
                     "Multiple RANK commands, overwritten");
             } else if (strcmp(s, "TOTAL") == 0) {
                 checked_parse_int(chart->meta.gauge_total,
-                    1, 999,
+                    1, 9999,
                     "Multiple TOTAL commands, overwritten");
             } else if (strcmp(s, "DIFFICULTY") == 0) {
                 checked_parse_int(chart->meta.difficulty,

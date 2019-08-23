@@ -10,13 +10,25 @@
 
 #include <math.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
 #define GLSL(__source) "#version 150 core\n" #__source
 
+#define TEX_W   12
+#define TEX_H   8
+
+static unsigned char tex_data[TEX_H][TEX_W] = {
+};
+
 #define _MAX_VERTICES   4096
-static float _vertices[_MAX_VERTICES][5];
+struct vertex {
+    float x, y;
+    float r, g, b;
+    float tx, ty;
+};
+static struct vertex _vertices[_MAX_VERTICES];
 static int _vertices_count;
 
 static int flatspin_init();
@@ -25,17 +37,21 @@ static void flatspin_update(float dt);
 static char *flatspin_bmspath;
 static char *flatspin_basepath;
 
-static inline void add_vertex(float x, float y, float r, float g, float b)
+static inline void add_vertex_tex(
+    float x, float y, float r, float g, float b, float tx, float ty)
 {
     if (_vertices_count >= _MAX_VERTICES) {
         fprintf(stderr, "> <  Too many vertices!");
         return;
     }
-    _vertices[_vertices_count][0] = x;
-    _vertices[_vertices_count][1] = y;
-    _vertices[_vertices_count][2] = r;
-    _vertices[_vertices_count][3] = g;
-    _vertices[_vertices_count++][4] = b;
+    _vertices[_vertices_count++] = (struct vertex){
+        x, y, r, g, b, tx, ty
+    };
+}
+
+static inline void add_vertex(float x, float y, float r, float g, float b)
+{
+    add_vertex_tex(x, y, r, g, b, -1, -1);
 }
 
 static inline void add_rect(
@@ -51,6 +67,23 @@ static inline void add_rect(
         highlight ? (g * 0.7 + 0.3) : g,
         highlight ? (b * 0.7 + 0.3) : b);
     add_vertex(x, y + h, r, g, b);
+}
+
+static inline void add_rect_tex(
+    float x, float y, float w, float h,
+    float r, float g, float b, float tx, float ty, float scale)
+{
+    add_vertex_tex(x, y + h, r, g, b, tx, ty + h * scale);
+    add_vertex_tex(x, y, r, g, b, tx, ty);
+    add_vertex_tex(x + w, y, r, g, b, tx + w * scale, ty);
+    add_vertex_tex(x + w, y, r, g, b, tx + w * scale, ty);
+    add_vertex_tex(x + w, y + h, r, g, b, tx + w * scale, ty + h * scale);
+    add_vertex_tex(x, y + h, r, g, b, tx, ty + h * scale);
+}
+
+static inline void add_text(
+    float x, float y, char ch
+) {
 }
 
 static inline GLuint load_shader(GLenum type, const char *source)
@@ -149,6 +182,9 @@ int main(int argc, char *argv[])
         return 2;
     }
 
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
     // -- Resource allocation --
     GLuint vao;
     glGenVertexArrays(1, &vao);
@@ -161,21 +197,30 @@ int main(int argc, char *argv[])
     const char *vshader_source = GLSL(
         in vec2 ppp;
         in vec3 qwq;
+        in vec2 uwu;
         out vec3 qwq_frag;
+        out vec2 uwu_frag;
         void main()
         {
             gl_Position = vec4(ppp, 0.0, 1.0);
             qwq_frag = qwq;
+            uwu_frag = uwu;
         }
     );
     GLuint vshader = load_shader(GL_VERTEX_SHADER, vshader_source);
 
     const char *fshader_source = GLSL(
         in vec3 qwq_frag;
+        in vec2 uwu_frag;
+        uniform sampler2D tex;
         out vec4 ooo;
         void main()
         {
-            ooo = vec4(qwq_frag, 1.0f);
+            if (uwu_frag.x < -0.5f) {
+                ooo = vec4(qwq_frag, 1.0f);
+            } else {
+                ooo = vec4(qwq_frag, texture(tex, uwu_frag));
+            }
         }
     );
     GLuint fshader = load_shader(GL_FRAGMENT_SHADER, fshader_source);
@@ -190,12 +235,31 @@ int main(int argc, char *argv[])
     GLuint ppp_attrib_index = glGetAttribLocation(prog, "ppp");
     glEnableVertexAttribArray(ppp_attrib_index);
     glVertexAttribPointer(ppp_attrib_index, 2, GL_FLOAT, GL_FALSE,
-        5 * sizeof(float), (void *)0);
+        sizeof(struct vertex), (void *)offsetof(struct vertex, x));
 
     GLuint qwq_attrib_index = glGetAttribLocation(prog, "qwq");
     glEnableVertexAttribArray(qwq_attrib_index);
     glVertexAttribPointer(qwq_attrib_index, 3, GL_FLOAT, GL_FALSE,
-        5 * sizeof(float), (void *)(2 * sizeof(float)));
+        sizeof(struct vertex), (void *)offsetof(struct vertex, r));
+
+    GLuint uwu_attrib_index = glGetAttribLocation(prog, "uwu");
+    glEnableVertexAttribArray(uwu_attrib_index);
+    glVertexAttribPointer(uwu_attrib_index, 2, GL_FLOAT, GL_FALSE,
+        sizeof(struct vertex), (void *)offsetof(struct vertex, tx));
+
+    for (int i = 0; i < TEX_H; i++)
+        for (int j = 0; j < TEX_W; j++)
+            tex_data[i][j] = -((i + j) & 1);
+
+    GLuint tex;
+    glGenTextures(1, &tex);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, TEX_W, TEX_H,
+        0, GL_RED, GL_UNSIGNED_BYTE, tex_data);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glUniform1i(glGetUniformLocation(prog, "tex"), 0);
 
     // -- Event/render loop --
 
@@ -210,7 +274,7 @@ int main(int argc, char *argv[])
         last_time = cur_time;
 
         glBufferData(GL_ARRAY_BUFFER,
-            _vertices_count * 5 * sizeof(float), _vertices, GL_STREAM_DRAW);
+            _vertices_count * sizeof(struct vertex), _vertices, GL_STREAM_DRAW);
         glDrawArrays(GL_TRIANGLES, 0, _vertices_count);
 
         glfwSwapBuffers(window);
@@ -607,4 +671,5 @@ static void flatspin_update(float dt)
     }
 
     add_rect(-1, HITLINE_POS, 2, 0.01, 1.0, 0.7, 0.4, false);
+    add_rect_tex(0, 0, 1, 1, 1.0, 1.0, 1.0, 0, 0, 1);
 }

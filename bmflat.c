@@ -402,7 +402,7 @@ int bm_load(struct bm_chart *chart, const char *_source)
         }
 
     // Fill in missing time signatures
-    for (int i = 0; i < max_bars; i++)
+    for (int i = 0; i <= max_bars; i++)
         if (chart->tracks.time_sig[i] == 0)
             chart->tracks.time_sig[i] = 4;
 

@@ -584,25 +584,25 @@ static void flatspin_update(float dt)
 
     for (int i = start; i < seq.event_count && seq.events[i].pos <= play_pos + fwd_range; i++) {
         struct bm_event ev = seq.events[i];
-        float x, w, r, g, b;
-        switch (ev.type) {
-        case BM_NOTE:
-        case BM_NOTE_LONG:
+        if (ev.type == BM_NOTE) {
+            float x, w, r, g, b;
             track_attr(ev.track, &x, &w, &r, &g, &b);
             add_rect(x, Y_POS(ev.pos), w,
-                ev.type == BM_NOTE ? 0.02f :
-                    0.02f + ev.value_a * scroll_speed,
+                0.02f,
                 r, g, b, true);
-            break;
-        case BM_NOTE_OFF:
-            if (ev.pos - ev.value_a < play_pos - bwd_range) {
-                track_attr(ev.track, &x, &w, &r, &g, &b);
-                add_rect(x, Y_POS(ev.pos - ev.value_a), w,
-                    ev.type == BM_NOTE ? 0.02f :
-                        0.02f + ev.value_a * scroll_speed,
-                    r, g, b, true);
-            }
-        default: break;
+        }
+    }
+
+    for (int i = 0; i < seq.long_note_count; i++) {
+        struct bm_event ev = seq.long_notes[i];
+        if (ev.pos <= play_pos + fwd_range &&
+            ev.pos + ev.value_a >= play_pos - bwd_range)
+        {
+            float x, w, r, g, b;
+            track_attr(ev.track, &x, &w, &r, &g, &b);
+            add_rect(x, Y_POS(ev.pos), w,
+                0.02f + ev.value_a * scroll_speed,
+                r, g, b, true);
         }
     }
 

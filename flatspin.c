@@ -569,6 +569,9 @@ static void flatspin_update(float dt)
 {
     // -- Events --
 
+    bool play_started = false;
+    bool play_cut = false;
+
     static int keys_prev[6] = { GLFW_RELEASE }; // GLFW_RELEASE == 0
     int keys[6] = {
         glfwGetKey(window, GLFW_KEY_UP),
@@ -594,21 +597,23 @@ static void flatspin_update(float dt)
         // Up: play pos+
         play_pos += dt * 288 / (scroll_speed / SS_INITIAL) * mul;
         playing = false;
+        play_cut = true;
     } else if (keys[1] == GLFW_PRESS && keys[0] == GLFW_RELEASE) {
         // Down: play pos-
         play_pos -= dt * 288 / (scroll_speed / SS_INITIAL) * mul;
         playing = false;
+        play_cut = true;
     }
-
-    bool play_started = false;
 
     if (keys[4] == GLFW_PRESS && keys_prev[4] == GLFW_RELEASE) {
         // Space: start/stop
-       play_started = playing = !playing; 
+        play_cut = playing;
+        play_started = playing = !playing; 
     }
 
     if (keys[5] == GLFW_PRESS && keys_prev[5] == GLFW_RELEASE) {
         // Enter: restart/stop
+        play_cut = playing;
         if (!playing) play_pos = 0;
         play_started = playing = !playing;
     }
@@ -625,7 +630,7 @@ static void flatspin_update(float dt)
             if (ev.type == BM_TEMPO_CHANGE) current_bpm = ev.value_f;
         }
         event_ptr = i;
-    } else if (!playing) {
+    } else if (play_cut) {
         // Stop all sounds
         ma_mutex_lock(&audio_device.lock);
         for (int i = 0; i < TOTAL_TRACKS; i++) track_wave[i] = -1;

@@ -25,7 +25,7 @@
 // ffmpeg -f rawvideo -pix_fmt gray - -i
 static unsigned char tex_data[TEX_H * TEX_W];
 
-#define _MAX_VERTICES   4096
+#define _MAX_VERTICES   16384
 struct vertex {
     float x, y;
     float r, g, b, a;
@@ -53,9 +53,14 @@ static inline void add_vertex_tex(
     };
 }
 
+static inline void add_vertex_a(float x, float y, float r, float g, float b, float a)
+{
+    add_vertex_tex(x, y, r, g, b, a, -1, -1);
+}
+
 static inline void add_vertex(float x, float y, float r, float g, float b)
 {
-    add_vertex_tex(x, y, r, g, b, 1, -1, -1);
+    add_vertex_a(x, y, r, g, b, 1);
 }
 
 static inline void add_rect(
@@ -71,6 +76,18 @@ static inline void add_rect(
         highlight ? (g * 0.7 + 0.3) : g,
         highlight ? (b * 0.7 + 0.3) : b);
     add_vertex(x, y + h, r, g, b);
+}
+
+static inline void add_rect_a(
+    float x, float y, float w, float h,
+    float r, float g, float b, float a)
+{
+    add_vertex_a(x, y + h, r, g, b, a);
+    add_vertex_a(x, y, r, g, b, a);
+    add_vertex_a(x + w, y, r, g, b, a);
+    add_vertex_a(x + w, y, r, g, b, a);
+    add_vertex_a(x + w, y + h, r, g, b, a);
+    add_vertex_a(x, y + h, r, g, b, a);
 }
 
 static inline void add_rect_tex(
@@ -254,9 +271,7 @@ int main(int argc, char *argv[])
         void main()
         {
             if (uwu_frag.x < -0.5f) {
-                ooo = vec4(
-                    qwq_frag.r, qwq_frag.g, qwq_frag.b,
-                    1.0f);
+                ooo = qwq_frag;
             } else {
                 ooo = vec4(
                     qwq_frag.r, qwq_frag.g, qwq_frag.b,
@@ -372,6 +387,7 @@ static float msq_accum[TOTAL_TRACKS] = { 0 };
 #define BGTRACK_WIDTH   2
 
 #define HITLINE_POS     -0.2f
+#define HITLINE_H       0.01
 
 static float unit;
 
@@ -438,6 +454,86 @@ static inline void delta_ss_submit(float delta, float time)
     float total_delta = delta + delta_ss_rate * delta_ss_time;
     delta_ss_rate = total_delta / time;
     delta_ss_time = time;
+}
+
+#define PARTICLE_SIZE   0.003
+#define PARTICLE_LIFE   0.5
+#define PARTICLES_MAX   1024
+#define GLOW_LIFE       0.75
+#define GLOWS_MAX       64
+
+static int particle_count = 0;
+static struct particle {
+    float x, y, r, g, b;
+    float vx, vy;
+    float t, life;
+} particles[PARTICLES_MAX];
+
+static int glow_count = 0;
+static struct glow {
+    float x, w, t;
+} glows[GLOWS_MAX];
+
+static inline void add_particle(float T, float x, float y, float r, float g, float b)
+{
+    if (particle_count >= PARTICLES_MAX) return;
+    float a = (float)rand() / RAND_MAX * M_PI * 2;
+    float t = ((float)rand() / RAND_MAX * 0.2 + 0.9) * PARTICLE_LIFE;
+    float l = ((float)rand() / RAND_MAX * 0.4 + 0.8);
+    particles[particle_count++] = (struct particle) {
+        x, y, r, g, b, 0.02 * l * cos(a), 0.06 * l * sin(a), T, t
+    };
+}
+
+static inline void add_glow(float T, float x, float w)
+{
+    if (glow_count >= GLOWS_MAX) return;
+    glows[glow_count++] = (struct glow) { x, w, T };
+}
+
+static inline void add_particles_on_line(float x, float w, float r, float g, float b)
+{
+    float T = glfwGetTime();
+    int number = (int)(w / 0.01);
+    for (int i = 0; i < number; i++) {
+        float dx = (float)rand() / RAND_MAX * w;
+        add_particle(T, x + dx, HITLINE_POS, r, g, b);
+    }
+    add_glow(T, x, w);
+}
+
+static inline void update_and_draw_particles(float T)
+{
+    for (int i = 0; i < particle_count; i++) {
+        if (T - particles[i].t >= particles[i].life) {
+            // To be removed
+            particles[i] = particles[--particle_count];
+            i--;
+        } else {
+            float r0 = (T - particles[i].t) / particles[i].life;
+            float r = 1 - expf(-r0 * 5);
+            add_rect_a(
+                particles[i].x + particles[i].vx * r,
+                particles[i].y + particles[i].vy * r,
+                PARTICLE_SIZE, PARTICLE_SIZE * 16 / 9,
+                particles[i].r, particles[i].g, particles[i].b,
+                1 - r0);
+        }
+    }
+
+    for (int i = 0; i < glow_count; i++) {
+        if (T - glows[i].t >= GLOW_LIFE) {
+            glows[i] = glows[--glow_count];
+            i--;
+        } else {
+            float r0 = (T - glows[i].t) / GLOW_LIFE;
+            float r = expf(-r0 * 5);
+            add_rect_a(
+                glows[i].x, HITLINE_POS - 0.004,
+                glows[i].w, HITLINE_H + 0.008,
+                1.0f, 0.85f, 0.7f, r);
+        }
+    }
 }
 
 static const char *base36 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -655,6 +751,8 @@ static void flatspin_update(float dt)
     if (playing) {
         play_pos += dt * current_bpm * (48.0f / 60.0f);
 
+        float x, w, r, g, b;
+
         while (event_ptr < seq.event_count && seq.events[event_ptr].pos <= play_pos) {
             struct bm_event ev = seq.events[event_ptr];
             switch (ev.type) {
@@ -665,6 +763,9 @@ static void flatspin_update(float dt)
             case BM_NOTE_LONG:
                 track_wave[track_index(ev.track)] = ev.value;
                 track_wave_pos[track_index(ev.track)] = 0;
+                // Create particles
+                track_attr(ev.track, &x, &w, &r, &g, &b);
+                add_particles_on_line(x, w, r, g, b);
                 break;
             // Not really
             //case BM_NOTE_OFF:
@@ -679,6 +780,11 @@ static void flatspin_update(float dt)
     if (play_pos < 0) {
         play_pos = 0;
     } else if (play_pos > seq.events[seq.event_count - 1].pos) {
+        if (playing) {
+            add_particles_on_line(-1, 2, 0.6, 0.7, 0.4);
+            add_particles_on_line(-1, 2, 0.6, 0.9, 0.4);
+            add_particles_on_line(-1, 2, 0.5, 1.0, 0.4);
+        }
         play_pos = seq.events[seq.event_count - 1].pos;
         playing = false;
     }
@@ -771,7 +877,9 @@ static void flatspin_update(float dt)
         }
     }
 
-    add_rect(-1, HITLINE_POS, 2, 0.01, 1.0, 0.7, 0.4, false);
+    // Hit line
+    add_rect(-1, HITLINE_POS, 2, HITLINE_H, 1.0, 0.7, 0.4, false);
+    update_and_draw_particles(glfwGetTime());
 
     // Messages from the parser
     if (msgs_show_time > -MSGS_FADE_OUT_TIME) {

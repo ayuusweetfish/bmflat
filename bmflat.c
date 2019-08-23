@@ -430,15 +430,16 @@ int bm_load(struct bm_chart *chart, const char *_source)
     return log_ptr;
 }
 
-static inline void add_event(struct bm_seq *seq, struct bm_event *event, int *cap)
+static inline void add_event_arr(
+    struct bm_event **arr, struct bm_event *event, int *size, int *cap)
 {
-    // XXX: DRY?
-    if (*cap <= seq->event_count) {
+    // XXX: More DRY
+    if (*cap <= *size) {
         *cap = (*cap == 0 ? 8 : (*cap << 1));
-        seq->events = (struct bm_event *)
-            realloc(seq->events, (*cap) * sizeof(struct bm_event));
+        *arr = (struct bm_event *)
+            realloc(*arr, (*cap) * sizeof(struct bm_event));
     }
-    seq->events[seq->event_count++] = *event;
+    (*arr)[(*size)++] = *event;
 }
 
 static inline int event_pos_compare(const void *lhs, const void *rhs)
@@ -454,6 +455,8 @@ void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
     int bar_start[BM_BARS_COUNT];
     struct bm_event event;
 
+    #define add_event() add_event_arr(&seq->events, &event, &seq->event_count, &cap)
+
     // Bar lines
     for (int i = 0, beats = 0; i < BM_BARS_COUNT; i++) {
         bar_start[i] = beats;
@@ -462,7 +465,7 @@ void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
         event.track = 0;
         event.value = chart->tracks.time_sig[i];
         beats += chart->tracks.time_sig[i];
-        add_event(seq, &event, &cap);
+        add_event();
         if (chart->tracks.time_sig[i] == 0) break;
     }
 
@@ -480,7 +483,7 @@ void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
         event.type = BM_TEMPO_CHANGE;
         event.track = 3;
         event.value_f = note->value;
-        add_event(seq, &event, &cap);
+        add_event();
     }
     // Track 08
     for track_each(chart->tracks.ex_tempo) {
@@ -488,7 +491,7 @@ void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
         event.type = BM_TEMPO_CHANGE;
         event.track = 8;
         event.value_f = chart->tables.tempo[note->value];
-        add_event(seq, &event, &cap);
+        add_event();
     }
 
     // BGA changes
@@ -498,7 +501,7 @@ void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
         event.type = BM_BGA_BASE_CHANGE;
         event.track = 4;
         event.value = note->value;
-        add_event(seq, &event, &cap);
+        add_event();
     }
     // Track 07: layer
     for track_each(chart->tracks.bga_layer) {
@@ -506,7 +509,7 @@ void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
         event.type = BM_BGA_LAYER_CHANGE;
         event.track = 7;
         event.value = note->value;
-        add_event(seq, &event, &cap);
+        add_event();
     }
     // Track 06: poor
     for track_each(chart->tracks.bga_poor) {
@@ -514,7 +517,7 @@ void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
         event.type = BM_BGA_POOR_CHANGE;
         event.track = 6;
         event.value = note->value;
-        add_event(seq, &event, &cap);
+        add_event();
     }
 
     // Stops
@@ -523,7 +526,7 @@ void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
         event.type = BM_STOP;
         event.track = 9;
         event.value = chart->tables.stop[note->value];
-        add_event(seq, &event, &cap);
+        add_event();
     }
 
     // Object tracks
@@ -535,7 +538,7 @@ void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
             event.type = BM_NOTE;
             event.track = -i;
             event.value = note->value;
-            add_event(seq, &event, &cap);
+            add_event();
         }
 
     // Objects
@@ -545,11 +548,11 @@ void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
                 // Release of a long note
                 event.type = BM_NOTE_LONG;
                 event.value_a = pos(note) - event.pos;
-                add_event(seq, &event, &cap);
+                add_event();
                 // Add a pair of events to simplify time-range queries
                 event.pos = pos(note);
                 event.type = BM_NOTE_OFF;
-                add_event(seq, &event, &cap);
+                add_event();
             } else {
                 event.pos = pos(note);
                 event.track = i + 10;
@@ -558,7 +561,7 @@ void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
                 if (!note->hold) {
                     // Normal note
                     event.type = BM_NOTE;
-                    add_event(seq, &event, &cap);
+                    add_event();
                 }
             }
         }
@@ -566,4 +569,12 @@ void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
     // With a stable sorting algorithm only positions need to be compared
     mergesort(seq->events, seq->event_count,
         sizeof(struct bm_event), event_pos_compare);
+
+    // Collect long notes
+    cap = 0;
+    for (int i = 0; i < seq->event_count; i++)
+        if (seq->events[i].type == BM_NOTE_LONG) {
+            add_event_arr(&seq->long_notes, &seq->events[i],
+                &seq->long_note_count, &cap);
+        }
 }

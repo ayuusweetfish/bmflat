@@ -92,6 +92,9 @@ struct bm_event {
 struct bm_seq {
     int event_count;
     struct bm_event *events;
+
+    int long_note_count;
+    struct bm_event *long_notes;
 };
 
 #define BM_MSG_LEN  128

@@ -181,10 +181,18 @@ int main()
                 ev.track, ev.value, chart.tables.wav[ev.value], ev.value_a);
             break;
         case BM_NOTE_OFF:
+            printf("Long release on track %3d\n", ev.track);
             break;
         default:
             puts("> <");
         }
+    }
+
+    puts("\nLong notes");
+    for (int i = 0; i < seq.long_note_count; i++) {
+        struct bm_event ev = seq.long_notes[i];
+        printf("Long on track %3d | %4d (%s) -- duration %d\n",
+            ev.track, ev.value, chart.tables.wav[ev.value], ev.value_a);
     }
 
     return 0;

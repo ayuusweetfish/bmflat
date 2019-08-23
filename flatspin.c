@@ -5,6 +5,9 @@
 
 #define DR_WAV_IMPLEMENTATION
 #include "miniaudio/extras/dr_wav.h"
+#define DR_MP3_IMPLEMENTATION
+#include "miniaudio/extras/dr_mp3.h"
+#include "miniaudio/extras/stb_vorbis.c"
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio/miniaudio.h"
 
@@ -438,6 +441,34 @@ static inline void delta_ss_submit(float delta, float time)
 
 static const char *base36 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
+static inline ma_result try_load_audio(
+    const char *path, ma_decoder_config *cfg, ma_uint64 *len, float **ptr)
+{
+    ma_result result = ma_decode_file(path, cfg, len, (void **)ptr);
+    if (result == MA_SUCCESS) return result;
+
+    // Try other extensions first
+    int p = -1, q;
+    for (q = 0; path[q] != '\0'; q++) if (path[q] == '.') p = q;
+    if (p == -1) p = q;
+    char *new_path = (char *)malloc(p + 5);
+    memcpy(new_path, path, p + 1);
+    new_path[p + 4] = '\0';
+
+    const char *extensions[] = { "wav", "ogg", "mp3" };
+    for (int i = 0; i < sizeof extensions / sizeof extensions[0]; i++) {
+        memcpy(new_path + p + 1, extensions[i], 3);
+        ma_result inner_result = ma_decode_file(new_path, cfg, len, (void **)ptr);
+        if (inner_result == MA_SUCCESS) {
+            free(new_path);
+            return inner_result;
+        }
+    }
+
+    free(new_path);
+    return result;
+}
+
 static int flatspin_init()
 {
     char *src = read_file(flatspin_bmspath);
@@ -467,15 +498,13 @@ static int flatspin_init()
     int len = strlen(flatspin_basepath);
     for (int i = 0; i < BM_INDEX_MAX; i++) if (chart.tables.wav[i] != NULL) {
         strncpy(s + len, chart.tables.wav[i], sizeof(s) - len - 1);
-        float *ptr;
-        ma_uint64 len;
-        ma_result result = ma_decode_file(s, &dec_config, &len, (void **)&ptr);
+        ma_result result = try_load_audio(s, &dec_config, &pcm_len[i], &pcm[i]);
         if (result != MA_SUCCESS) {
+            pcm_len[i] = 0;
+            pcm[i] = NULL;
             fprintf(stderr, "> <  Cannot load wave #%c%c %s (error code %d)\n",
                 base36[i / 36], base36[i % 36], s, result);
         } else {
-            pcm_len[i] = len;
-            pcm[i] = ptr;
             fprintf(stderr, "= =  Loaded wave #%c%c %s; length %.3f seconds\n",
                 base36[i / 36], base36[i % 36],
                 chart.tables.wav[i], (double)pcm_len[i] / 44100);

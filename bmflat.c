@@ -463,7 +463,8 @@ void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
         event.pos = beats * 48;
         event.type = BM_BARLINE;
         event.track = 0;
-        event.value = chart->tracks.time_sig[i];
+        event.value = i;
+        event.value_a = chart->tracks.time_sig[i];
         beats += chart->tracks.time_sig[i];
         add_event();
         if (chart->tracks.time_sig[i] == 0) break;

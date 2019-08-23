@@ -353,6 +353,7 @@ static float msgs_show_time = -MSGS_FADE_OUT_TIME;
 
 static float *pcm[BM_INDEX_MAX] = { NULL };
 static ma_uint64 pcm_len[BM_INDEX_MAX] = { 0 };
+#define GAIN    0.5
 
 #define TOTAL_TRACKS    (8 + BM_BGM_TRACKS)
 static int track_wave[TOTAL_TRACKS];
@@ -405,8 +406,8 @@ static void audio_data_callback(
             for (j = 0; j < nframes && start + j < pcm_len[wave]; j++) {
                 float lsmp = pcm[wave][(start + j) * 2];
                 float rsmp = pcm[wave][(start + j) * 2 + 1];
-                output[j * 2] += lsmp;
-                output[j * 2 + 1] += rsmp;
+                output[j * 2] += lsmp * GAIN;
+                output[j * 2 + 1] += rsmp * GAIN;
                 msq_accum[i] += lsmp * lsmp + rsmp * rsmp;
             }
             track_wave_pos[i] += j;

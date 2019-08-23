@@ -25,7 +25,7 @@ static unsigned char tex_data[TEX_H * TEX_W];
 #define _MAX_VERTICES   4096
 struct vertex {
     float x, y;
-    float r, g, b;
+    float r, g, b, a;
     float tx, ty;
 };
 static struct vertex _vertices[_MAX_VERTICES];
@@ -38,20 +38,21 @@ static char *flatspin_bmspath;
 static char *flatspin_basepath;
 
 static inline void add_vertex_tex(
-    float x, float y, float r, float g, float b, float tx, float ty)
+    float x, float y, float r, float g, float b, float a,
+    float tx, float ty)
 {
     if (_vertices_count >= _MAX_VERTICES) {
         fprintf(stderr, "> <  Too many vertices!");
         return;
     }
     _vertices[_vertices_count++] = (struct vertex){
-        x, y, r, g, b, tx, ty
+        x, y, r, g, b, a, tx, ty
     };
 }
 
 static inline void add_vertex(float x, float y, float r, float g, float b)
 {
-    add_vertex_tex(x, y, r, g, b, -1, -1);
+    add_vertex_tex(x, y, r, g, b, 1, -1, -1);
 }
 
 static inline void add_rect(
@@ -71,43 +72,44 @@ static inline void add_rect(
 
 static inline void add_rect_tex(
     float x, float y, float w, float h,
-    float r, float g, float b, float tx, float ty, float tw, float th)
+    float r, float g, float b, float a,
+    float tx, float ty, float tw, float th)
 {
-    add_vertex_tex(x, y + h, r, g, b, tx, ty);
-    add_vertex_tex(x, y, r, g, b, tx, ty + th);
-    add_vertex_tex(x + w, y, r, g, b, tx + tw, ty + th);
-    add_vertex_tex(x + w, y, r, g, b, tx + tw, ty + th);
-    add_vertex_tex(x + w, y + h, r, g, b, tx + tw, ty);
-    add_vertex_tex(x, y + h, r, g, b, tx, ty);
+    add_vertex_tex(x, y + h, r, g, b, a, tx, ty);
+    add_vertex_tex(x, y, r, g, b, a, tx, ty + th);
+    add_vertex_tex(x + w, y, r, g, b, a, tx + tw, ty + th);
+    add_vertex_tex(x + w, y, r, g, b, a, tx + tw, ty + th);
+    add_vertex_tex(x + w, y + h, r, g, b, a, tx + tw, ty);
+    add_vertex_tex(x, y + h, r, g, b, a, tx, ty);
 }
 
 #define TEXT_W  (1.0f / 30)
 #define TEXT_H  (TEXT_W * 2)
 
 static inline void add_char(
-    float x, float y, float r, float g, float b, char ch)
+    float x, float y, float r, float g, float b, float a, char ch)
 {
     int row = (ch - 32) / 16, col = ch % 16;
-    add_rect_tex(x, y, TEXT_W, TEXT_H, r, g, b,
+    add_rect_tex(x, y, TEXT_W, TEXT_H, r, g, b, a,
         col / 16.0f, row / 6.0f, 1 / 16.0f, 1 / 6.0f);
 }
 
 static inline void add_text(
-    float x, float y, float r, float g, float b, const char *s)
+    float x, float y, float r, float g, float b, float a, const char *s)
 {
     for (; *s != '\0'; s++) {
-        add_char(x, y, r, g, b, *s);
+        add_char(x, y, r, g, b, a, *s);
         x += TEXT_W;
     }
 }
 
 static inline int add_text_w(
-    float x, float y, float w, float r, float g, float b, const char *s)
+    float x, float y, float w, float r, float g, float b, float a, const char *s)
 {
     int lines = 1;
     float delta_x = 0;
     for (; *s != '\0'; s++) {
-        add_char(x + delta_x, y, r, g, b, *s);
+        add_char(x + delta_x, y, r, g, b, a, *s);
         delta_x += TEXT_W;
         if (delta_x + TEXT_W >= w) {
             delta_x = 0;
@@ -228,9 +230,9 @@ int main(int argc, char *argv[])
 
     const char *vshader_source = GLSL(
         in vec2 ppp;
-        in vec3 qwq;
+        in vec4 qwq;
         in vec2 uwu;
-        out vec3 qwq_frag;
+        out vec4 qwq_frag;
         out vec2 uwu_frag;
         void main()
         {
@@ -242,16 +244,20 @@ int main(int argc, char *argv[])
     GLuint vshader = load_shader(GL_VERTEX_SHADER, vshader_source);
 
     const char *fshader_source = GLSL(
-        in vec3 qwq_frag;
+        in vec4 qwq_frag;
         in vec2 uwu_frag;
         uniform sampler2D tex;
         out vec4 ooo;
         void main()
         {
             if (uwu_frag.x < -0.5f) {
-                ooo = vec4(qwq_frag, 1.0f);
+                ooo = vec4(
+                    qwq_frag.r, qwq_frag.g, qwq_frag.b,
+                    1.0f);
             } else {
-                ooo = vec4(qwq_frag, texture(tex, uwu_frag));
+                ooo = vec4(
+                    qwq_frag.r, qwq_frag.g, qwq_frag.b,
+                    qwq_frag.a * texture(tex, uwu_frag));
             }
         }
     );
@@ -271,7 +277,7 @@ int main(int argc, char *argv[])
 
     GLuint qwq_attrib_index = glGetAttribLocation(prog, "qwq");
     glEnableVertexAttribArray(qwq_attrib_index);
-    glVertexAttribPointer(qwq_attrib_index, 3, GL_FLOAT, GL_FALSE,
+    glVertexAttribPointer(qwq_attrib_index, 4, GL_FLOAT, GL_FALSE,
         sizeof(struct vertex), (void *)offsetof(struct vertex, r));
 
     GLuint uwu_attrib_index = glGetAttribLocation(prog, "uwu");
@@ -339,7 +345,7 @@ static int msgs_count;
 static struct bm_chart chart;
 static struct bm_seq seq;
 
-#define MSGS_FADE_OUT_TIME  0.5
+#define MSGS_FADE_OUT_TIME  0.2
 static float msgs_show_time = -MSGS_FADE_OUT_TIME;
 
 static float *pcm[BM_INDEX_MAX] = { NULL };
@@ -683,7 +689,8 @@ static void flatspin_update(float dt)
         if (seq.events[i].type == BM_BARLINE) {
             add_rect(-1, Y_POS(seq.events[i].pos), 2, 0.01, 0.4, 0.4, 0.4, false);
             sprintf(s, "#%03d", seq.events[i].value);
-            add_text(1 - TEXT_W * 4, Y_POS(seq.events[i].pos) + TEXT_H / 8, 0.4, 0.4, 0.4, s);
+            add_text(1 - TEXT_W * 4, Y_POS(seq.events[i].pos) + TEXT_H / 8,
+                0.4, 0.4, 0.4, 1.0, s);
         }
     }
 
@@ -718,15 +725,16 @@ static void flatspin_update(float dt)
         char s[10];
         float y = 0.95 - TEXT_H * 1.75;
         float line_w = 1.9 - TEXT_W * 5;
+        float alpha = (msgs_show_time > 0 ? 1 : 1 + msgs_show_time / MSGS_FADE_OUT_TIME);
         for (int i = 0; i < msgs_count; i++) {
             if (bm_logs[i].line != -1) {
                 snprintf(s, sizeof s, "L%3d", bm_logs[i].line);
-                add_text(-0.95, y, 1.0, 1.0, 0.7, s);
+                add_text(-0.95, y, 1.0, 1.0, 0.7, alpha, s);
             } else {
-                add_char(-0.95 + TEXT_W * 3, y, 1.0, 1.0, 0.7, '>');
+                add_char(-0.95 + TEXT_W * 3, y, 1.0, 1.0, 0.7, alpha, '>');
             }
             int lines = add_text_w(-0.95 + TEXT_W * 5, y,
-                line_w, 0.95, 0.95, 0.95, bm_logs[i].message);
+                line_w, 0.95, 0.95, 0.95, alpha, bm_logs[i].message);
             y -= TEXT_H * (lines + 0.75);
         }
     }

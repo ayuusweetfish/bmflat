@@ -111,6 +111,7 @@ static inline void add_rect_tex(
 static inline void add_char(
     float x, float y, float r, float g, float b, float a, char ch)
 {
+    if (ch < 32 || ch > 127) ch = '?';
     int row = (ch - 32) / 16, col = ch % 16;
     add_rect_tex(x, y, TEXT_W, TEXT_H, r, g, b, a,
         col / 16.0f, row / 6.0f, 1 / 16.0f, 1 / 6.0f);
@@ -170,6 +171,8 @@ static GLFWwindow *window;
 static void audio_data_callback(
     ma_device *device, float *output, const float *input, ma_uint32 nframes);
 static ma_device audio_device;
+
+static char loading_msg[1024] = { 0 };
 
 int main(int argc, char *argv[])
 {
@@ -616,8 +619,11 @@ static int flatspin_init()
         if (result != MA_SUCCESS) {
             pcm_len[i] = 0;
             pcm[i] = NULL;
-            fprintf(stderr, "> <  Cannot load wave #%c%c %s (error code %d)\n",
-                base36[i / 36], base36[i % 36], s, result);
+            snprintf(loading_msg, sizeof loading_msg,
+                "> <  Cannot load wave #%c%c %s",
+                base36[i / 36], base36[i % 36], s);
+            fputs(loading_msg, stderr);
+            fputc('\n', stderr);
         } else {
             fprintf(stderr, "= =  Loaded wave #%c%c %s; length %.3f seconds\n",
                 base36[i / 36], base36[i % 36],
@@ -911,7 +917,7 @@ static void flatspin_update(float dt)
 
     // Messages from the parser
     if (msgs_show_time > -MSGS_FADE_OUT_TIME) {
-        char s[10];
+        char s[128];
         float y = 0.95 - TEXT_H * 1.75;
         float line_w = 1.9 - TEXT_W * 5;
         float alpha = (msgs_show_time > 0 ? 1 : 1 + msgs_show_time / MSGS_FADE_OUT_TIME);
@@ -923,8 +929,18 @@ static void flatspin_update(float dt)
                 add_char(-0.95 + TEXT_W * 3, y, 1.0, 1.0, 0.7, alpha, '>');
             }
             int lines = add_text_w(-0.95 + TEXT_W * 5, y,
-                line_w, 0.95, 0.95, 0.95, alpha, bm_logs[i].message);
+                line_w, 0.95, 0.95, 0.9, alpha, bm_logs[i].message);
             y -= TEXT_H * (lines + 0.75);
+        }
+        if (loading_msg[0] != '\0') {
+            add_char(-0.95 + TEXT_W * 3, y, 1.0, 0.7, 0.7, alpha, '!');
+            add_text_w(-0.95 + TEXT_W * 5, y,
+                line_w, 0.95, 0.9, 0.9, alpha, loading_msg);
+        } else {
+            add_char(-0.95 + TEXT_W * 3, y, 0.8, 1.0, 0.7, alpha, '~');
+            snprintf(s, sizeof s, "%s - %s", chart.meta.title, chart.meta.artist);
+            add_text_w(-0.95 + TEXT_W * 5, y,
+                line_w, 0.9, 0.95, 0.9, alpha, s);
         }
     }
 

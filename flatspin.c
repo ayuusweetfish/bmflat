@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define GLSL(__source) "#version 150 core\n" #__source
+#define GL2
 
 #define TEX_W   96
 #define TEX_H   48
@@ -234,10 +234,15 @@ int main(int argc, char *argv[])
         return 2;
     }
 
+#ifdef GL2
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+#else
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
     glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
 
     window = glfwCreateWindow(960, 540, "bmflatspin", NULL, NULL);
@@ -267,6 +272,44 @@ int main(int argc, char *argv[])
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
 
+#ifdef GL2
+
+#define GLSL(__source) "#version 120\n" #__source
+
+    const char *vshader_source = GLSL(
+        attribute vec2 ppp;
+        attribute vec4 qwq;
+        attribute vec2 uwu;
+        varying vec4 qwq_frag;
+        varying vec2 uwu_frag;
+        void main()
+        {
+            gl_Position = vec4(ppp, 0.0, 1.0);
+            qwq_frag = qwq;
+            uwu_frag = uwu;
+        }
+    );
+
+    const char *fshader_source = GLSL(
+        varying vec4 qwq_frag;
+        varying vec2 uwu_frag;
+        uniform sampler2D tex;
+        void main()
+        {
+            if (uwu_frag.x < -0.5f) {
+                gl_FragColor = qwq_frag;
+            } else {
+                gl_FragColor = vec4(
+                    qwq_frag.r, qwq_frag.g, qwq_frag.b,
+                    qwq_frag.a * texture2D(tex, uwu_frag));
+            }
+        }
+    );
+
+#else
+
+#define GLSL(__source) "#version 150 core\n" #__source
+
     const char *vshader_source = GLSL(
         in vec2 ppp;
         in vec4 qwq;
@@ -280,7 +323,6 @@ int main(int argc, char *argv[])
             uwu_frag = uwu;
         }
     );
-    GLuint vshader = load_shader(GL_VERTEX_SHADER, vshader_source);
 
     const char *fshader_source = GLSL(
         in vec4 qwq_frag;
@@ -298,12 +340,18 @@ int main(int argc, char *argv[])
             }
         }
     );
+
+#endif
+
+    GLuint vshader = load_shader(GL_VERTEX_SHADER, vshader_source);
     GLuint fshader = load_shader(GL_FRAGMENT_SHADER, fshader_source);
 
     GLuint prog = glCreateProgram();
     glAttachShader(prog, vshader);
     glAttachShader(prog, fshader);
+#ifndef GL2
     glBindFragDataLocation(prog, 0, "ooo");
+#endif
     glLinkProgram(prog);
     glUseProgram(prog);
 

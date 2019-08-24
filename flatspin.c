@@ -39,7 +39,7 @@ static int _vertices_count;
 static int flatspin_init();
 static void flatspin_update(float dt);
 
-static char *flatspin_bmspath;
+static const char *flatspin_bmspath;
 static char *flatspin_basepath;
 
 static inline void add_vertex_tex(

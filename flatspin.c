@@ -423,9 +423,9 @@ static int event_ptr;
 static float delta_ss_rate; // For easing of scroll speed changes
 static float delta_ss_time;
 #define SS_MIN  (0.1f / 48)
-#define SS_MAX  (1.0f / 48)
+#define SS_MAX  (1.2f / 48)
 #define SS_DELTA    (0.05f / 48)
-#define SS_INITIAL  (0.4f / 48)
+#define SS_INITIAL  (0.6f / 48)
 
 static void audio_data_callback(
     ma_device *device, float *output, const float *input, ma_uint32 nframes)

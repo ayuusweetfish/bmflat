@@ -174,6 +174,11 @@ static ma_device audio_device;
 
 static char loading_msg[1024] = { 0 };
 
+static void glfw_err_callback(int error, const char *desc)
+{
+    fprintf(stderr, "> <  GLFW: (%d) %s\n", error, desc);
+}
+
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
@@ -205,9 +210,6 @@ int main(int argc, char *argv[])
     }
     fprintf(stderr, "^ ^  Asset search path: %s\n", flatspin_basepath);
 
-    int result = flatspin_init();
-    if (result != 0) return result;
-
     // Initialize miniaudio
     ma_device_config dev_config =
         ma_device_config_init(ma_device_type_playback);
@@ -224,6 +226,8 @@ int main(int argc, char *argv[])
     }
 
     // -- Initialization --
+
+    glfwSetErrorCallback(glfw_err_callback);
 
     if (!glfwInit()) {
         fprintf(stderr, "> <  Cannot initialize GLFW\n");
@@ -328,6 +332,9 @@ int main(int argc, char *argv[])
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glUniform1i(glGetUniformLocation(prog, "tex"), 0);
+
+    int result = flatspin_init();
+    if (result != 0) return result;
 
     // -- Event/render loop --
 

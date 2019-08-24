@@ -11,6 +11,8 @@
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio/miniaudio.h"
 
+#include "tinyfiledialogs/tinyfiledialogs.h"
+
 #include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -172,12 +174,22 @@ static ma_device audio_device;
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
+#ifdef NO_FILE_DIALOG
         fprintf(stderr, "=~=  Usage: %s <path to BMS>\n", argv[0]);
         return 0;
+#else
+        // Open dialog
+        const char *filters[] = { "*.bms", "*.bme", "*.bml" };
+        const char *file = tinyfd_openFileDialog(
+            NULL, NULL, 3, filters, "Be-Music Source", 0);
+        if (file == NULL) return 0;
+        flatspin_bmspath = file;
+#endif
+    } else {
+        flatspin_bmspath = argv[1];
     }
 
     // Extract path and executable path
-    flatspin_bmspath = argv[1];
     int p = -1;
     for (int i = 0; flatspin_bmspath[i] != '\0'; i++)
         if (flatspin_bmspath[i] == '/' || flatspin_bmspath[i] == '\\') p = i;

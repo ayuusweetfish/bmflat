@@ -102,7 +102,7 @@ static int note_time_compare(const void *_lhs, const void *_rhs)
 static inline void sort_track(struct bm_track *track, int *max_bars)
 {
     // A stable sorting algorithm
-    mergesort(track->notes, track->note_count,
+    qsort(track->notes, track->note_count,
         sizeof(struct bm_note), note_time_compare);
     // Remove duplicates
     int p, q;
@@ -448,9 +448,12 @@ static inline void add_event_arr(
     (*arr)[(*size)++] = *event;
 }
 
-static inline int event_pos_compare(const void *lhs, const void *rhs)
+static inline int event_pos_type_compare(const void *_lhs, const void *_rhs)
 {
-    return ((struct bm_event *)lhs)->pos - ((struct bm_event *)rhs)->pos;
+    struct bm_event *lhs = (struct bm_event *)_lhs;
+    struct bm_event *rhs = (struct bm_event *)_rhs;
+    int diff = lhs->pos - rhs->pos;
+    return (diff == 0 ?  lhs->type - rhs->type : diff);
 }
 
 void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
@@ -574,8 +577,8 @@ void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
         }
 
     // With a stable sorting algorithm only positions need to be compared
-    mergesort(seq->events, seq->event_count,
-        sizeof(struct bm_event), event_pos_compare);
+    qsort(seq->events, seq->event_count,
+        sizeof(struct bm_event), event_pos_type_compare);
 
     // Collect long notes
     cap = 0;

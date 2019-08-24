@@ -534,8 +534,8 @@ static inline void update_and_draw_particles(float T)
             float r0 = (T - glows[i].t) / GLOW_LIFE;
             float r = expf(-r0 * 5);
             add_rect_a(
-                glows[i].x, HITLINE_POS - 0.004,
-                glows[i].w, HITLINE_H + 0.008,
+                glows[i].x, HITLINE_POS - 0.005 * r,
+                glows[i].w, HITLINE_H + 0.01 * r,
                 1.0f, 0.85f, 0.7f, r);
         }
     }

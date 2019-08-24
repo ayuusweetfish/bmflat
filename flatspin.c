@@ -366,6 +366,10 @@ static struct bm_seq seq;
 #define MSGS_FADE_OUT_TIME  0.2
 static float msgs_show_time = -MSGS_FADE_OUT_TIME;
 
+static bool show_stats = false;
+static int fps_accum = 0, fps_record = 0;
+static float fps_record_time = 0;
+
 static float *pcm[BM_INDEX_MAX] = { NULL };
 static ma_uint64 pcm_len[BM_INDEX_MAX] = { 0 };
 #define GAIN    0.5
@@ -670,14 +674,15 @@ static void flatspin_update(float dt)
     bool play_started = false;
     bool play_cut = false;
 
-    static int keys_prev[6] = { GLFW_RELEASE }; // GLFW_RELEASE == 0
-    int keys[6] = {
+    static int keys_prev[7] = { GLFW_RELEASE }; // GLFW_RELEASE == 0
+    int keys[7] = {
         glfwGetKey(window, GLFW_KEY_UP),
         glfwGetKey(window, GLFW_KEY_DOWN),
         glfwGetKey(window, GLFW_KEY_LEFT),
         glfwGetKey(window, GLFW_KEY_RIGHT),
         glfwGetKey(window, GLFW_KEY_SPACE),
-        glfwGetKey(window, GLFW_KEY_ENTER)
+        glfwGetKey(window, GLFW_KEY_ENTER),
+        glfwGetKey(window, GLFW_KEY_TAB)
     };
 
     if (keys[2] == GLFW_PRESS && keys_prev[2] == GLFW_RELEASE) {
@@ -738,6 +743,9 @@ static void flatspin_update(float dt)
 
     // Fade out log messages on any movement
     if (play_pos != 0 && msgs_show_time > 0) msgs_show_time = 0;
+
+    if (keys[6] == GLFW_PRESS && keys_prev[6] == GLFW_RELEASE)
+        show_stats ^= 1;
 
     memcpy(keys_prev, keys, sizeof keys);
 
@@ -906,6 +914,21 @@ static void flatspin_update(float dt)
                 line_w, 0.95, 0.95, 0.95, alpha, bm_logs[i].message);
             y -= TEXT_H * (lines + 0.75);
         }
+    }
+
+    if (show_stats) {
+        fps_accum++;
+        if ((fps_record_time += dt) >= 1) {
+            fps_record_time -= 1;
+            fps_record = fps_accum;
+            fps_accum = 0;
+        }
+        int n_verts = _vertices_count;
+        char s[32];
+        snprintf(s, sizeof s, "%6d vertices", n_verts);
+        add_text(0.95 - TEXT_W * 14, -1 + TEXT_H * 2, 1.0, 1.0, 1.0, 0.75, s);
+        snprintf(s, sizeof s, "%3d ms | %2d FPS", (int)(dt * 1000 + 0.5), fps_record);
+        add_text(0.95 - TEXT_W * 14, -1 + TEXT_H * 0.5, 1.0, 1.0, 1.0, 0.75, s);
     }
 }
 

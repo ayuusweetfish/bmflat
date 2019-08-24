@@ -414,18 +414,22 @@ int bm_load(struct bm_chart *chart, const char *_source)
         } \
     } while (0)
 
+    #define check_default_no_log(_var, _name, _initial, _val) do { \
+        if ((_var) == (_initial)) (_var) = (_val); \
+    } while (0)
+
     check_default(chart->meta.player_num, "PLAYER", -1, 1);
     check_default(chart->meta.genre, "GENRE", NULL, "(unknown)");
     check_default(chart->meta.title, "TITLE", NULL, "(unknown)");
     check_default(chart->meta.artist, "ARTIST", NULL, "(unknown)");
-    check_default(chart->meta.subartist, "SUBARTIST", NULL, "(unknown)");
+    check_default_no_log(chart->meta.subartist, "SUBARTIST", NULL, "(unknown)");
     check_default(chart->meta.init_tempo, "BPM", -1, 130);
     check_default(chart->meta.play_level, "LEVEL", -1, 3);
-    check_default(chart->meta.judge_rank, "RANK", -1, 3);
-    check_default(chart->meta.gauge_total, "TOTAL", -1, 160);
-    check_default(chart->meta.stage_file, "STAGEFILE", NULL, "(none)");
-    check_default(chart->meta.banner, "BANNER", NULL, "(none)");
-    check_default(chart->meta.back_bmp, "BACKBMP", NULL, "(none)");
+    check_default_no_log(chart->meta.judge_rank, "RANK", -1, 3);
+    check_default_no_log(chart->meta.gauge_total, "TOTAL", -1, 160);
+    check_default_no_log(chart->meta.stage_file, "STAGEFILE", NULL, "(none)");
+    check_default_no_log(chart->meta.banner, "BANNER", NULL, "(none)");
+    check_default_no_log(chart->meta.back_bmp, "BACKBMP", NULL, "(none)");
 
     free(source);
     return log_ptr;

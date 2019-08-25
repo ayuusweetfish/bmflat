@@ -79,7 +79,7 @@ enum bm_event_type {
 struct bm_event {
     int pos;    // beat * 48 + fraction in 48ths of a beat (192ths of a whole note)
     enum bm_event_type type:8;
-    char track; // non-positive for backgrounds; 11 - 59 for objects
+    signed char track;  // non-positive for backgrounds; 11 - 59 for objects
     union {
         struct {
             short value;

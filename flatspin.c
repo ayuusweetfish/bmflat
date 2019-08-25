@@ -450,6 +450,7 @@ int main(int argc, char *argv[])
     glDeleteBuffers(1, &vbo);
 
     glfwTerminate();
+    ma_device_uninit(&audio_device);
 
     if (p == -1) free(flatspin_basepath);
     flatspin_cleanup();

@@ -11,7 +11,9 @@
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio/miniaudio.h"
 
+#ifndef NO_FILE_DIALOG
 #include "tinyfiledialogs/tinyfiledialogs.h"
+#endif
 
 #include <math.h>
 #include <stdbool.h>
@@ -20,6 +22,7 @@
 #include <string.h>
 
 #define GL2
+#define USE_RGBA
 
 #define TEX_W   96
 #define TEX_H   48
@@ -245,7 +248,7 @@ int main(int argc, char *argv[])
 #endif
     glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
 
-    window = glfwCreateWindow(960, 540, "bmflatspin", NULL, NULL);
+    window = glfwCreateWindow(320, 240, "bmflatspin", NULL, NULL);
     if (window == NULL) {
         fprintf(stderr, "> <  Cannot create GLFW window\n");
         return 2;
@@ -296,13 +299,15 @@ int main(int argc, char *argv[])
         uniform sampler2D tex;
         void main()
         {
-            if (uwu_frag.x < -0.5f) {
-                gl_FragColor = qwq_frag;
-            } else {
-                gl_FragColor = vec4(
-                    qwq_frag.r, qwq_frag.g, qwq_frag.b,
-                    qwq_frag.a * texture2D(tex, uwu_frag));
+            vec4 chroma = qwq_frag;
+            if (uwu_frag.x >= -0.5f) {
+#ifdef USE_RGBA
+                chroma = texture2D(tex, uwu_frag);
+#else
+                chroma.a *= texture2D(tex, uwu_frag).r;
+#endif
             }
+            gl_FragColor = chroma;
         }
     );
 
@@ -371,12 +376,29 @@ int main(int argc, char *argv[])
         sizeof(struct vertex), (void *)offsetof(struct vertex, tx));
 
     for (int i = 0; i < TEX_W * TEX_H; i++) tex_data[i] = -tex_data[i];
+
+    unsigned char *buf;
+    GLenum format;
+
+#ifdef USE_RGBA
+    unsigned char _zz[TEX_W * TEX_H * 4];
+    for (int i = 0; i < TEX_W * TEX_H; i++)
+        _zz[i * 4] = _zz[i * 4 + 1] = _zz[i * 4 + 2] = _zz[i * 4 + 3] = tex_data[i];
+    buf = _zz;
+    format = GL_RGBA;
+#else
+    buf = tex_data;
+    format = GL_RED;
+#endif
+
     GLuint tex;
     glGenTextures(1, &tex);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, tex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, TEX_W, TEX_H,
-        0, GL_RED, GL_UNSIGNED_BYTE, tex_data);
+    glTexImage2D(GL_TEXTURE_2D, 0, format, TEX_W, TEX_H,
+        0, format, GL_UNSIGNED_BYTE, buf);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glUniform1i(glGetUniformLocation(prog, "tex"), 0);
@@ -389,6 +411,8 @@ int main(int argc, char *argv[])
     float last_time = 0, cur_time;
 
     while (!glfwWindowShouldClose(window)) {
+        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) break;
+
         glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
@@ -403,6 +427,13 @@ int main(int argc, char *argv[])
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
+    glDeleteProgram(prog);
+    glDeleteShader(vshader);
+    glDeleteShader(fshader);
+    glDeleteTextures(1, &tex);
+    glDeleteVertexArrays(1, &vao);
+    glDeleteBuffers(1, &vbo);
 
     glfwTerminate();
     return 0;
@@ -436,7 +467,7 @@ static struct bm_seq seq;
 #define MSGS_FADE_OUT_TIME  0.2
 static float msgs_show_time = -MSGS_FADE_OUT_TIME;
 
-static bool show_stats = false;
+static bool show_stats = true;
 static int fps_accum = 0, fps_record = 0;
 static float fps_record_time = 0;
 

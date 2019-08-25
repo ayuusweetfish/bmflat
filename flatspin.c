@@ -23,9 +23,14 @@
 
 #define GL2
 #define USE_RGBA
+#define LARGE_TEXT
 
 #define TEX_W   96
 #define TEX_H   48
+
+#define WIN_W   320
+#define WIN_H   240
+#define ASPECT_RATIO    ((float)WIN_W / WIN_H)
 
 // ffmpeg -f rawvideo -pix_fmt gray - -i
 static unsigned char tex_data[TEX_H * TEX_W];
@@ -108,7 +113,12 @@ static inline void add_rect_tex(
     add_vertex_tex(x, y + h, r, g, b, a, tx, ty);
 }
 
+#ifdef LARGE_TEXT
+#define TEXT_W  (1.0f / 15)
+#else
 #define TEXT_W  (1.0f / 30)
+#endif
+
 #define TEXT_H  (TEXT_W * 2)
 
 static inline void add_char(
@@ -248,7 +258,7 @@ int main(int argc, char *argv[])
 #endif
     glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
 
-    window = glfwCreateWindow(320, 240, "bmflatspin", NULL, NULL);
+    window = glfwCreateWindow(WIN_W, WIN_H, "bmflatspin", NULL, NULL);
     if (window == NULL) {
         fprintf(stderr, "> <  Cannot create GLFW window\n");
         return 2;
@@ -467,7 +477,7 @@ static struct bm_seq seq;
 #define MSGS_FADE_OUT_TIME  0.2
 static float msgs_show_time = -MSGS_FADE_OUT_TIME;
 
-static bool show_stats = true;
+static bool show_stats = false;
 static int fps_accum = 0, fps_record = 0;
 static float fps_record_time = 0;
 
@@ -621,7 +631,7 @@ static inline void update_and_draw_particles(float T)
             add_rect_a(
                 particles[i].x + particles[i].vx * r,
                 particles[i].y + particles[i].vy * r,
-                PARTICLE_SIZE, PARTICLE_SIZE * 16 / 9,
+                PARTICLE_SIZE, PARTICLE_SIZE * ASPECT_RATIO,
                 particles[i].r, particles[i].g, particles[i].b,
                 1 - r0);
         }
@@ -778,15 +788,16 @@ static void flatspin_update(float dt)
     bool play_started = false;
     bool play_cut = false;
 
-    static int keys_prev[7] = { GLFW_RELEASE }; // GLFW_RELEASE == 0
-    int keys[7] = {
+    static int keys_prev[8] = { GLFW_RELEASE }; // GLFW_RELEASE == 0
+    int keys[8] = {
         glfwGetKey(window, GLFW_KEY_UP),
         glfwGetKey(window, GLFW_KEY_DOWN),
         glfwGetKey(window, GLFW_KEY_LEFT),
         glfwGetKey(window, GLFW_KEY_RIGHT),
         glfwGetKey(window, GLFW_KEY_SPACE),
         glfwGetKey(window, GLFW_KEY_ENTER),
-        glfwGetKey(window, GLFW_KEY_TAB)
+        glfwGetKey(window, GLFW_KEY_TAB),
+        glfwGetKey(window, GLFW_KEY_U)
     };
 
     if (keys[2] == GLFW_PRESS && keys_prev[2] == GLFW_RELEASE) {
@@ -848,8 +859,8 @@ static void flatspin_update(float dt)
     // Fade out log messages on any movement
     if (play_pos != 0 && msgs_show_time > 0) msgs_show_time = 0;
 
-    if (keys[6] == GLFW_PRESS && keys_prev[6] == GLFW_RELEASE)
-        show_stats ^= 1;
+    show_stats ^= (keys[6] == GLFW_PRESS && keys_prev[6] == GLFW_RELEASE);
+    show_stats ^= (keys[7] == GLFW_PRESS && keys_prev[7] == GLFW_RELEASE);
 
     memcpy(keys_prev, keys, sizeof keys);
 
@@ -1040,9 +1051,9 @@ static void flatspin_update(float dt)
         int n_verts = _vertices_count;
         char s[32];
         snprintf(s, sizeof s, "%6d vertices", n_verts);
-        add_text(0.95 - TEXT_W * 14, -1 + TEXT_H * 2, 1.0, 1.0, 1.0, 0.75, s);
+        add_text(0.95 - TEXT_W * 15, -1 + TEXT_H * 2, 1.0, 1.0, 1.0, 0.75, s);
         snprintf(s, sizeof s, "%3d ms | %2d FPS", (int)(dt * 1000 + 0.5), fps_record);
-        add_text(0.95 - TEXT_W * 14, -1 + TEXT_H * 0.5, 1.0, 1.0, 1.0, 0.75, s);
+        add_text(0.95 - TEXT_W * 15, -1 + TEXT_H * 0.5, 1.0, 1.0, 1.0, 0.75, s);
     }
 }
 

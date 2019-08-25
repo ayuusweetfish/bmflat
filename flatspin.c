@@ -51,6 +51,7 @@ static int _vertices_count;
 
 static int flatspin_init();
 static void flatspin_update(float dt);
+static void flatspin_cleanup();
 
 static const char *flatspin_bmspath;
 static char *flatspin_basepath;
@@ -451,6 +452,10 @@ int main(int argc, char *argv[])
     glDeleteBuffers(1, &vbo);
 
     glfwTerminate();
+
+    if (p == -1) free(flatspin_basepath);
+    flatspin_cleanup();
+
     return 0;
 }
 
@@ -696,6 +701,8 @@ static int flatspin_init()
     }
 
     msgs_count = bm_load(&chart, src);
+    free(src);
+
     bm_to_seq(&chart, &seq);
     msgs_show_time = 10;
 
@@ -1060,6 +1067,12 @@ static void flatspin_update(float dt)
         snprintf(s, sizeof s, "%3d ms | %2d FPS", (int)(dt * 1000 + 0.5), fps_record);
         add_text(0.95 - TEXT_W * 15, -1 + TEXT_H * 0.5, 1.0, 1.0, 1.0, 0.75, s);
     }
+}
+
+static void flatspin_cleanup()
+{
+    for (int i = 0; i < BM_INDEX_MAX; i++)
+        if (pcm[i] != NULL) ma_free(pcm[i]);
 }
 
 // ffmpeg -f rawvideo -pix_fmt gray - -i font.png | hexdump -ve '1/1 "%.2x"' | fold -w96 | sed -e 's/00/0,/g' | sed -e 's/ff/1,/g'

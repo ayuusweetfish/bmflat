@@ -191,8 +191,6 @@ static void audio_data_callback(
     ma_device *device, float *output, const float *input, ma_uint32 nframes);
 static ma_device audio_device;
 
-static char loading_msg[1024] = { 0 };
-
 static void glfw_err_callback(int error, const char *desc)
 {
     fprintf(stderr, "> <  GLFW: (%d) %s\n", error, desc);
@@ -424,7 +422,7 @@ int main(int argc, char *argv[])
 
     // -- Event/render loop --
 
-    float last_time = 0, cur_time;
+    float last_time = glfwGetTime(), cur_time;
 
     while (!glfwWindowShouldClose(window)) {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) break;
@@ -491,6 +489,13 @@ static bool show_stats = false;
 static int fps_accum = 0, fps_record = 0;
 static float fps_record_time = 0;
 
+static bool pcm_loaded = false;
+// 0 - not loaded
+// 1 - loaded
+// 2 - failed
+static int pcm_load_state[BM_INDEX_MAX] = { 0 };
+static int wave_count = 0;
+
 static float *pcm[BM_INDEX_MAX] = { NULL };
 static ma_uint64 pcm_len[BM_INDEX_MAX] = { 0 };
 #define GAIN    0.5
@@ -539,7 +544,7 @@ static void audio_data_callback(
     ma_mutex_lock(&device->lock);
 
     ma_zero_pcm_frames(output, nframes, ma_format_f32, 2);
-    for (int i = 0; i < BM_INDEX_MAX; i++) {
+    if (pcm_loaded) for (int i = 0; i < BM_INDEX_MAX; i++) {
         int track = pcm_track[i];
         if (track != -1) {
             int start = pcm_pos[i];
@@ -692,6 +697,45 @@ static inline ma_result try_load_audio(
     return result;
 }
 
+ma_thread audio_load_thread;
+
+static ma_thread_result MA_THREADCALL flatspin_load_audio(void *data)
+{
+    // Load PCM data
+    ma_decoder_config dec_config = ma_decoder_config_init(ma_format_f32, 2, 44100);
+    char s[1024] = { 0 };
+    strcpy(s, flatspin_basepath);
+    int len = strlen(flatspin_basepath);
+    for (int i = 0; i < BM_INDEX_MAX; i++) if (chart.tables.wav[i] != NULL) {
+        strncpy(s + len, chart.tables.wav[i], sizeof(s) - len - 1);
+        float *ptr;
+        ma_uint64 len;
+        ma_result result = try_load_audio(s, &dec_config, &len, &ptr);
+        ma_mutex_lock(&audio_device.lock);
+        if (result != MA_SUCCESS) {
+            pcm_len[i] = 0;
+            pcm[i] = NULL;
+            pcm_load_state[i] = 2;
+        } else {
+            pcm_len[i] = len;
+            pcm[i] = ptr;
+            pcm_load_state[i] = 1;
+        }
+        ma_mutex_unlock(&audio_device.lock);
+    }
+
+    for (int i = 0; i < BM_INDEX_MAX; i++) {
+        pcm_track[i] = -1;
+        pcm_pos[i] = 0;
+    }
+
+    ma_mutex_lock(&audio_device.lock);
+    pcm_loaded = true;
+    ma_mutex_unlock(&audio_device.lock);
+
+    return NULL;
+}
+
 static int flatspin_init()
 {
     char *src = read_file(flatspin_bmspath);
@@ -716,32 +760,16 @@ static int flatspin_init()
 
     delta_ss_rate = delta_ss_time = 0;
 
-    // Load PCM data
-    ma_decoder_config dec_config = ma_decoder_config_init(ma_format_f32, 2, 44100);
-    char s[1024] = { 0 };
-    strcpy(s, flatspin_basepath);
-    int len = strlen(flatspin_basepath);
-    for (int i = 0; i < BM_INDEX_MAX; i++) if (chart.tables.wav[i] != NULL) {
-        strncpy(s + len, chart.tables.wav[i], sizeof(s) - len - 1);
-        ma_result result = try_load_audio(s, &dec_config, &pcm_len[i], &pcm[i]);
-        if (result != MA_SUCCESS) {
-            pcm_len[i] = 0;
-            pcm[i] = NULL;
-            snprintf(loading_msg, sizeof loading_msg,
-                "> <  Cannot load wave #%c%c %s",
-                base36[i / 36], base36[i % 36], s);
-            fputs(loading_msg, stderr);
-            fputc('\n', stderr);
-        } else {
-            fprintf(stderr, "= =  Loaded wave #%c%c %s; length %.3f seconds\n",
-                base36[i / 36], base36[i % 36],
-                chart.tables.wav[i], (double)pcm_len[i] / 44100);
-        }
-    }
+    wave_count = 0;
+    for (int i = 0; i < BM_INDEX_MAX; i++)
+        wave_count += (chart.tables.wav[i] != NULL);
 
-    for (int i = 0; i < BM_INDEX_MAX; i++) {
-        pcm_track[i] = -1;
-        pcm_pos[i] = 0;
+    ma_result result = ma_thread_create(
+        audio_device.pContext, &audio_load_thread,
+        flatspin_load_audio, NULL);
+    if (result != MA_SUCCESS) {
+        // Fall back to synchronous loading
+        flatspin_load_audio(NULL);
     }
 
     return 0;
@@ -1026,11 +1054,15 @@ static void flatspin_update(float dt)
 
     // Messages from the parser
     if (msgs_show_time > -MSGS_FADE_OUT_TIME) {
+        const int MAX_LOGS = 5;
+        const int MAX_FAILURES = 5;
+
         char s[128];
         float y = 0.95 - TEXT_H * 1.75;
         float line_w = 1.9 - TEXT_W * 5;
         float alpha = (msgs_show_time > 0 ? 1 : 1 + msgs_show_time / MSGS_FADE_OUT_TIME);
-        for (int i = 0; i < msgs_count; i++) {
+        int disp_count = (msgs_count <= MAX_LOGS + 1 ? msgs_count : MAX_LOGS);
+        for (int i = 0; i < disp_count; i++) {
             if (bm_logs[i].line != -1) {
                 snprintf(s, sizeof s, "L%3d", bm_logs[i].line);
                 add_text(-0.95, y, 1.0, 1.0, 0.7, alpha, s);
@@ -1041,16 +1073,56 @@ static void flatspin_update(float dt)
                 line_w, 0.95, 0.95, 0.9, alpha, bm_logs[i].message);
             y -= TEXT_H * (lines + 0.75);
         }
-        if (loading_msg[0] != '\0') {
-            add_char(-0.95 + TEXT_W * 3, y, 1.0, 0.7, 0.7, alpha, '!');
-            add_text_w(-0.95 + TEXT_W * 5, y,
-                line_w, 0.95, 0.9, 0.9, alpha, loading_msg);
-        } else {
+        if (msgs_count > disp_count) {
+            add_char(-0.95 + TEXT_W * 1, y, 1.0, 1.0, 0.7, alpha, '@');
+            add_char(-0.95 + TEXT_W * 2, y, 1.0, 1.0, 0.7, alpha, ' ');
+            add_char(-0.95 + TEXT_W * 3, y, 1.0, 1.0, 0.7, alpha, '@');
+            sprintf(s, "... and %d more warnings", msgs_count - disp_count);
+            int lines = add_text_w(-0.95 + TEXT_W * 5, y,
+                line_w, 0.95, 0.95, 0.9, alpha, s);
+            y -= TEXT_H * (lines + 0.75);
+        }
+
+        ma_mutex_lock(&audio_device.lock);
+        int loaded_count = 0, failed_count = 0;
+        for (int i = 0; i < BM_INDEX_MAX; i++) if (pcm_load_state[i] != 0) {
+            loaded_count++;
+            if (pcm_load_state[i] == 2) {
+                if (++failed_count <= MAX_FAILURES) {
+                    add_char(-0.95 + TEXT_W * 3, y, 1.0, 0.7, 0.7, alpha, '!');
+                    snprintf(s, sizeof s, "Cannot load wave #%c%c [%s]",
+                        base36[i / 36], base36[i % 36], chart.tables.wav[i]);
+                    int lines = add_text_w(-0.95 + TEXT_W * 5, y,
+                        line_w, 0.95, 0.9, 0.9, alpha, s);
+                    y -= TEXT_H * (lines + 0.75);
+                }
+            }
+        }
+        if (failed_count > MAX_FAILURES) {
+            add_char(-0.95 + TEXT_W * 1, y, 1.0, 0.7, 0.7, alpha, '>');
+            add_char(-0.95 + TEXT_W * 2, y, 1.0, 0.7, 0.7, alpha, ' ');
+            add_char(-0.95 + TEXT_W * 3, y, 1.0, 0.7, 0.7, alpha, '<');
+            sprintf(s, "... and %d more audio file%s",
+                failed_count - MAX_FAILURES,
+                failed_count - MAX_FAILURES > 1 ? "s" : "");
+            int lines = add_text_w(-0.95 + TEXT_W * 5, y,
+                line_w, 0.95, 0.9, 0.9, alpha, s);
+            y -= TEXT_H * (lines + 0.75);
+        }
+        if (pcm_loaded) {
             add_char(-0.95 + TEXT_W * 3, y, 0.8, 1.0, 0.7, alpha, '~');
             snprintf(s, sizeof s, "%s - %s", chart.meta.title, chart.meta.artist);
             add_text_w(-0.95 + TEXT_W * 5, y,
                 line_w, 0.9, 0.95, 0.9, alpha, s);
+        } else {
+            add_char(-0.95 + TEXT_W * 1, y, 1.0, 0.9, 0.6, alpha, '.');
+            add_char(-0.95 + TEXT_W * 2, y, 1.0, 0.9, 0.6, alpha, '.');
+            add_char(-0.95 + TEXT_W * 3, y, 1.0, 0.9, 0.6, alpha, '.');
+            snprintf(s, sizeof s, "Loading audio %4d/%4d", loaded_count, wave_count);
+            add_text_w(-0.95 + TEXT_W * 5, y,
+                line_w, 1.0, 0.95, 0.9, alpha, s);
         }
+        ma_mutex_unlock(&audio_device.lock);
     }
 
     if (show_stats) {

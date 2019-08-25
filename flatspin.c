@@ -315,11 +315,7 @@ int main(int argc, char *argv[])
         {
             vec4 chroma = qwq_frag;
             if (uwu_frag.x >= -0.5f) {
-#ifdef USE_RGBA
-                chroma = texture2D(tex, uwu_frag);
-#else
                 chroma.a *= texture2D(tex, uwu_frag).r;
-#endif
             }
             gl_FragColor = chroma;
         }

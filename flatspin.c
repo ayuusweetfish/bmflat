@@ -828,6 +828,7 @@ static void flatspin_update(float dt)
 
     bool play_started = false;
     bool play_cut = false;
+    bool moved = false;
 
     static int keys_prev[8] = { GLFW_RELEASE }; // GLFW_RELEASE == 0
     int keys[8] = {
@@ -857,11 +858,13 @@ static void flatspin_update(float dt)
         play_pos += dt * 288 / (scroll_speed / SS_INITIAL) * mul;
         playing = false;
         play_cut = true;
+        moved = true;
     } else if (keys[1] == GLFW_PRESS && keys[0] == GLFW_RELEASE) {
         // Down: play pos-
         play_pos -= dt * 288 / (scroll_speed / SS_INITIAL) * mul;
         playing = false;
         play_cut = true;
+        moved = true;
     }
 
     if (keys[4] == GLFW_PRESS && keys_prev[4] == GLFW_RELEASE) {
@@ -897,9 +900,6 @@ static void flatspin_update(float dt)
         ma_mutex_unlock(&audio_device.lock);
     }
 
-    // Fade out log messages on any movement
-    if (play_pos != 0 && msgs_show_time > 0) msgs_show_time = 0;
-
     show_stats ^= (keys[6] == GLFW_PRESS && keys_prev[6] == GLFW_RELEASE);
     show_stats ^= (keys[7] == GLFW_PRESS && keys_prev[7] == GLFW_RELEASE);
 
@@ -907,12 +907,15 @@ static void flatspin_update(float dt)
 
     // -- Updates --
 
-    if (msgs_show_time > -MSGS_FADE_OUT_TIME)
-        msgs_show_time -= dt;
-
     delta_ss_step(dt);
 
     ma_mutex_lock(&audio_device.lock);
+
+    if (pcm_loaded) {
+        // Fade out log messages on any movement
+        if ((moved || play_started) && msgs_show_time > 0) msgs_show_time = 0;
+        if (msgs_show_time > -MSGS_FADE_OUT_TIME) msgs_show_time -= dt;
+    }
 
     if (playing) {
         play_pos += dt * current_bpm * (48.0f / 60.0f);
@@ -1120,8 +1123,17 @@ static void flatspin_update(float dt)
             add_char(-0.95 + TEXT_W * 2, y, 1.0, 0.9, 0.6, alpha, '.');
             add_char(-0.95 + TEXT_W * 3, y, 1.0, 0.9, 0.6, alpha, '.');
             snprintf(s, sizeof s, "Loading audio %4d/%4d", loaded_count, wave_count);
-            add_text_w(-0.95 + TEXT_W * 5, y,
+            int lines = add_text_w(-0.95 + TEXT_W * 5, y,
                 line_w, 1.0, 0.95, 0.9, alpha, s);
+            y -= TEXT_H * (lines + 0.75);
+            if (playing) {
+                add_char(-0.95 + TEXT_W * 1, y, 1.0, 0.9, 0.6, alpha, '=');
+                add_char(-0.95 + TEXT_W * 2, y, 1.0, 0.9, 0.6, alpha, '~');
+                add_char(-0.95 + TEXT_W * 3, y, 1.0, 0.9, 0.6, alpha, '=');
+                add_text_w(-0.95 + TEXT_W * 5, y,
+                    line_w, 1.0, 0.95, 0.9, alpha,
+                    "No sounds right now, but trying very hard!");
+            }
         }
         ma_mutex_unlock(&audio_device.lock);
     }

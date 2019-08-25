@@ -21,15 +21,20 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef CONSOLE
 #define GL2
 #define USE_RGBA
 #define LARGE_TEXT
+#define WIN_W   320
+#define WIN_H   240
+#else
+#define WIN_W   960
+#define WIN_H   540
+#endif
 
 #define TEX_W   96
 #define TEX_H   48
 
-#define WIN_W   320
-#define WIN_H   240
 #define ASPECT_RATIO    ((float)WIN_W / WIN_H)
 
 // ffmpeg -f rawvideo -pix_fmt gray - -i
@@ -957,7 +962,7 @@ static void flatspin_update(float dt)
     for (int i = start; i < seq.event_count && seq.events[i].pos <= play_pos + fwd_range; i++) {
         float bpm = -1;
         if (seq.events[i].type == BM_BARLINE) {
-            if (i == seq.event_count - 1) {
+            if (seq.events[i].pos == seq.events[seq.event_count - 1].pos) {
                 add_rect(-1, Y_POS(seq.events[i].pos), 2, 0.01, 0.6, 0.7, 0.4, false);
                 add_text(1 - TEXT_W * 11.5, Y_POS(seq.events[i].pos) + TEXT_H / 8,
                     0.6, 0.7, 0.4, 1.0, "Fin \\(^ ^)/");

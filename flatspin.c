@@ -1,3 +1,4 @@
+#define GLEW_STATIC
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
@@ -7,7 +8,6 @@
 #include "miniaudio/extras/dr_wav.h"
 #define DR_MP3_IMPLEMENTATION
 #include "miniaudio/extras/dr_mp3.h"
-#include "miniaudio/extras/stb_vorbis.c"
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio/miniaudio.h"
 
@@ -20,6 +20,10 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
+
+#ifndef M_PI
+#define M_PI 3.1415926535897932384626433832795
+#endif
 
 #ifdef CONSOLE
 #define GL2
@@ -446,10 +450,12 @@ int main(int argc, char *argv[])
     glDeleteBuffers(1, &vbo);
 
     glfwTerminate();
+#ifdef CONSOLE
     ma_device_uninit(&audio_device);
 
     if (p == -1) free(flatspin_basepath);
     flatspin_cleanup();
+#endif
 
     return 0;
 }
@@ -730,7 +736,7 @@ static ma_thread_result MA_THREADCALL flatspin_load_audio(void *data)
     pcm_loaded = true;
     ma_mutex_unlock(&audio_device.lock);
 
-    return NULL;
+    return (ma_thread_result)0;
 }
 
 static int flatspin_init()

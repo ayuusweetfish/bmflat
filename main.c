@@ -24,7 +24,7 @@ char *read_file(const char *path)
 
 int main()
 {
-    char *src = read_file("/Users/lsq/Downloads/a/lemon_firmament_ogg/lemon_firmament_hyper.bme");
+    char *src = read_file("sample.bms");
     if (src == NULL) {
         puts("> <");
         return 1;

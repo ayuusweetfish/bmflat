@@ -10,27 +10,27 @@ add_requires('glfw3', {optional = true})
 add_requires('glew', {optional = true})
 
 rule('bms')
-    set_extensions('.bms', '.bme', '.bml')
+    set_extensions('.bms', '.bme', '.bml', '.pms')
     on_build_file(function (target, source)
         os.cp(source, path.join(target:targetdir(), source))
     end)
 
-target('bmflat')
+target('flattest')
     set_kind('binary')
     add_rules('bms')
     add_headerfiles('bmflat.h')
     add_files('bmflat.c')
-    add_files('main.c')
+    add_files('flattest.c')
     add_files('sample.bms')
 
-target('bmflatspin')
+target('flatspin')
     set_kind('binary')
     add_packages('glfw3')
     add_packages('glew')
     if is_plat('macosx') then
         add_frameworks('OpenGL')
     elseif is_plat('linux') then
-        add_links('GL')
+        add_links('m', 'dl', 'pthread', 'GL')
     elseif is_plat('windows') then
         add_links('user32', 'ole32', 'comdlg32', 'shell32', 'gdi32', 'opengl32')
     end

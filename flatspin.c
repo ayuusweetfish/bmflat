@@ -473,7 +473,7 @@ int main(int argc, char *argv[])
 
 static char *read_file(const char *path)
 {
-    FILE *f = fopen(path, "r");
+    FILE *f = fopen(path, "rb");
     if (f == NULL) return NULL;
 
     char *buf = NULL;
@@ -482,8 +482,9 @@ static char *read_file(const char *path)
         if (fseek(f, 0, SEEK_END) != 0) break;
         long len = ftell(f);
         if (fseek(f, 0, SEEK_SET) != 0) break;
-        if ((buf = (char *)malloc(len)) == NULL) break;
+        if ((buf = (char *)malloc(len + 1)) == NULL) break;
         if (fread(buf, len, 1, f) != 1) { free(buf); buf = NULL; break; }
+        buf[len] = 0;
     } while (0);
 
     fclose(f);

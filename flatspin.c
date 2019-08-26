@@ -202,6 +202,11 @@ static void glfw_err_callback(int error, const char *desc)
     fprintf(stderr, "> <  GLFW: (%d) %s\n", error, desc);
 }
 
+static void glfw_fbsz_callback(GLFWwindow *window, int w, int h)
+{
+    glViewport(0, 0, w, h);
+}
+
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
@@ -425,6 +430,8 @@ int main(int argc, char *argv[])
     // -- Event/render loop --
 
     float last_time = glfwGetTime(), cur_time;
+
+    glfwSetFramebufferSizeCallback(window, glfw_fbsz_callback);
 
     while (!glfwWindowShouldClose(window)) {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) break;

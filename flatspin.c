@@ -23,6 +23,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #ifndef M_PI
 #define M_PI 3.1415926535897932384626433832795
 #endif
@@ -214,6 +218,10 @@ int main(int argc, char *argv[])
         fprintf(stderr, "=~=  Usage: %s <path to BMS>\n", argv[0]);
         return 0;
 #else
+    #ifdef _WIN32
+        FreeConsole();
+    #endif
+
         // Open dialog
         const char *filters[] = { "*.bms", "*.bme", "*.bml", "*.pms" };
         const char *file = tinyfd_openFileDialog(

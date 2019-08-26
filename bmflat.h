@@ -109,6 +109,9 @@ extern struct bm_log *bm_logs;
 int bm_load(struct bm_chart *chart, const char *source);
 void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq);
 
+void bm_close_chart(struct bm_chart *chart);
+void bm_close_seq(struct bm_seq *seq);
+
 #ifdef __cplusplus
 }
 #endif

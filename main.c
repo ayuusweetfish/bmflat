@@ -193,5 +193,21 @@ int main()
             ev.track, ev.value, chart.tables.wav[ev.value], ev.value_a);
     }
 
+    for (int i = 0; i < 10; i++) {
+        printf("%d %d\n", seq.event_count, seq.long_note_count);
+        bm_close_chart(&chart);
+        bm_close_seq(&seq);
+        bm_load(&chart, src);
+        bm_to_seq(&chart, &seq);
+    }
+
+    bm_close_chart(&chart);
+    bm_close_seq(&seq);
+    bm_close_chart(&chart);
+    bm_close_seq(&seq);
+
+    // Memory leaks and double freeing should not occur
+    // getchar();
+
     return 0;
 }

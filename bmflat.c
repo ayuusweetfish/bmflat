@@ -420,17 +420,17 @@ int bm_load(struct bm_chart *chart, const char *_source)
     } while (0)
 
     check_default(chart->meta.player_num, "PLAYER", -1, 1);
-    check_default(chart->meta.genre, "GENRE", NULL, "(unknown)");
-    check_default(chart->meta.title, "TITLE", NULL, "(unknown)");
-    check_default(chart->meta.artist, "ARTIST", NULL, "(unknown)");
-    check_default_no_log(chart->meta.subartist, "SUBARTIST", NULL, "(unknown)");
+    check_default(chart->meta.genre, "GENRE", NULL, strdup("(unknown)"));
+    check_default(chart->meta.title, "TITLE", NULL, strdup("(unknown)"));
+    check_default(chart->meta.artist, "ARTIST", NULL, strdup("(unknown)"));
+    check_default_no_log(chart->meta.subartist, "SUBARTIST", NULL, strdup("(unknown)"));
     check_default(chart->meta.init_tempo, "BPM", -1, 130);
     check_default(chart->meta.play_level, "LEVEL", -1, 3);
     check_default_no_log(chart->meta.judge_rank, "RANK", -1, 3);
     check_default_no_log(chart->meta.gauge_total, "TOTAL", -1, 160);
-    check_default_no_log(chart->meta.stage_file, "STAGEFILE", NULL, "(none)");
-    check_default_no_log(chart->meta.banner, "BANNER", NULL, "(none)");
-    check_default_no_log(chart->meta.back_bmp, "BACKBMP", NULL, "(none)");
+    check_default_no_log(chart->meta.stage_file, "STAGEFILE", NULL, strdup("(none)"));
+    check_default_no_log(chart->meta.banner, "BANNER", NULL, strdup("(none)"));
+    check_default_no_log(chart->meta.back_bmp, "BACKBMP", NULL, strdup("(none)"));
 
     free(source);
     return log_ptr;
@@ -587,4 +587,35 @@ void bm_to_seq(struct bm_chart *chart, struct bm_seq *seq)
             add_event_arr(&seq->long_notes, &seq->events[i],
                 &seq->long_note_count, &cap);
         }
+}
+
+#define sfree(_p) (((_p) != NULL) && (free(_p), (_p) = NULL))
+
+void bm_close_chart(struct bm_chart *chart)
+{
+    sfree(chart->meta.genre);
+    sfree(chart->meta.title);
+    sfree(chart->meta.artist);
+    sfree(chart->meta.subartist);
+    sfree(chart->meta.stage_file);
+    sfree(chart->meta.banner);
+    sfree(chart->meta.back_bmp);
+    for (int i = 0; i < BM_INDEX_MAX; i++) sfree(chart->tables.wav[i]);
+    for (int i = 0; i < BM_INDEX_MAX; i++) sfree(chart->tables.bmp[i]);
+    for (int i = 0; i < chart->tracks.background_count; i++)
+        sfree(chart->tracks.background[i].notes);
+    for (int i = 0; i < 60; i++)
+        sfree(chart->tracks.object[i].notes);
+    sfree(chart->tracks.tempo.notes);
+    sfree(chart->tracks.bga_base.notes);
+    sfree(chart->tracks.bga_layer.notes);
+    sfree(chart->tracks.bga_poor.notes);
+    sfree(chart->tracks.ex_tempo.notes);
+    sfree(chart->tracks.stop.notes);
+}
+
+void bm_close_seq(struct bm_seq *seq)
+{
+    sfree(seq->events);
+    sfree(seq->long_notes);
 }

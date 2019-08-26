@@ -1160,6 +1160,9 @@ static void flatspin_cleanup()
 {
     for (int i = 0; i < BM_INDEX_MAX; i++)
         if (pcm[i] != NULL) ma_free(pcm[i]);
+
+    bm_close_chart(&chart);
+    bm_close_seq(&seq);
 }
 
 // ffmpeg -f rawvideo -pix_fmt gray - -i font.png | hexdump -ve '1/1 "%.2x"' | fold -w96 | sed -e 's/00/0,/g' | sed -e 's/ff/1,/g'

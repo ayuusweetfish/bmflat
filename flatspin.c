@@ -32,14 +32,20 @@
 #endif
 
 #ifdef CONSOLE
-#define GL2
-#define USE_RGBA
-#define LARGE_TEXT
-#define WIN_W   320
-#define WIN_H   240
+    #define GL2
+    #define USE_RGBA
+    #define LARGE_TEXT
+    #define WIN_W   320
+    #define WIN_H   240
+    #define SAMPLE_FORMAT   ma_format_s16
+    #define SAMPLE_TYPE     signed short
+    #define SAMPLE_MAXVALSQ (32768 * 32768)
 #else
-#define WIN_W   960
-#define WIN_H   540
+    #define WIN_W   960
+    #define WIN_H   540
+    #define SAMPLE_FORMAT   ma_format_f32
+    #define SAMPLE_TYPE     float
+    #define SAMPLE_MAXVALSQ 1
 #endif
 
 #define TEX_W   96
@@ -198,7 +204,7 @@ static inline GLuint load_shader(GLenum type, const char *source)
 static GLFWwindow *window; 
 
 static void audio_data_callback(
-    ma_device *device, float *output, const float *input, ma_uint32 nframes);
+    ma_device *device, SAMPLE_TYPE *output, const SAMPLE_TYPE *input, ma_uint32 nframes);
 static ma_device audio_device;
 
 static void glfw_err_callback(int error, const char *desc)
@@ -249,7 +255,7 @@ int main(int argc, char *argv[])
     // Initialize miniaudio
     ma_device_config dev_config =
         ma_device_config_init(ma_device_type_playback);
-    dev_config.playback.format = ma_format_f32;
+    dev_config.playback.format = SAMPLE_FORMAT;
     dev_config.playback.channels = 2;
     dev_config.sampleRate = 44100;
     dev_config.dataCallback = (ma_device_callback_proc)audio_data_callback;
@@ -520,7 +526,7 @@ static bool pcm_loaded = false;
 static int pcm_load_state[BM_INDEX_MAX] = { 0 };
 static int wave_count = 0;
 
-static float *pcm[BM_INDEX_MAX] = { NULL };
+static SAMPLE_TYPE *pcm[BM_INDEX_MAX] = { NULL };
 static ma_uint64 pcm_len[BM_INDEX_MAX] = { 0 };
 #define GAIN    0.5
 
@@ -563,22 +569,22 @@ static float delta_ss_time;
 #define SS_INITIAL  (0.6f / 48)
 
 static void audio_data_callback(
-    ma_device *device, float *output, const float *input, ma_uint32 nframes)
+    ma_device *device, SAMPLE_TYPE *output, const SAMPLE_TYPE *input, ma_uint32 nframes)
 {
     ma_mutex_lock(&device->lock);
 
-    ma_zero_pcm_frames(output, nframes, ma_format_f32, 2);
+    ma_zero_pcm_frames(output, nframes, SAMPLE_FORMAT, 2);
     if (pcm_loaded) for (int i = 0; i < BM_INDEX_MAX; i++) {
         int track = pcm_track[i];
         if (track != -1) {
             int start = pcm_pos[i];
             int j;
             for (j = 0; j < nframes && start + j < pcm_len[i]; j++) {
-                float lsmp = pcm[i][(start + j) * 2];
-                float rsmp = pcm[i][(start + j) * 2 + 1];
+                SAMPLE_TYPE lsmp = pcm[i][(start + j) * 2];
+                SAMPLE_TYPE rsmp = pcm[i][(start + j) * 2 + 1];
                 output[j * 2] += lsmp * GAIN;
                 output[j * 2 + 1] += rsmp * GAIN;
-                msq_accum[track] += lsmp * lsmp + rsmp * rsmp;
+                msq_accum[track] += (float)lsmp * lsmp + (float)rsmp * rsmp;
             }
             pcm_pos[i] += j;
             if (pcm_pos[i] >= pcm_len[i]) pcm_track[i] = -1;
@@ -694,7 +700,7 @@ static inline void update_and_draw_particles(float T)
 static const char *base36 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 static inline ma_result try_load_audio(
-    const char *path, ma_decoder_config *cfg, ma_uint64 *len, float **ptr)
+    const char *path, ma_decoder_config *cfg, ma_uint64 *len, SAMPLE_TYPE **ptr)
 {
     ma_result result = ma_decode_file(path, cfg, len, (void **)ptr);
     if (result == MA_SUCCESS) return result;
@@ -726,13 +732,13 @@ ma_thread audio_load_thread;
 static ma_thread_result MA_THREADCALL flatspin_load_audio(void *data)
 {
     // Load PCM data
-    ma_decoder_config dec_config = ma_decoder_config_init(ma_format_f32, 2, 44100);
+    ma_decoder_config dec_config = ma_decoder_config_init(SAMPLE_FORMAT, 2, 44100);
     char s[1024] = { 0 };
     strcpy(s, flatspin_basepath);
     int len = strlen(flatspin_basepath);
     for (int i = 0; i < BM_INDEX_MAX; i++) if (chart.tables.wav[i] != NULL) {
         strncpy(s + len, chart.tables.wav[i], sizeof(s) - len - 1);
-        float *ptr;
+        SAMPLE_TYPE *ptr;
         ma_uint64 len;
         ma_result result = try_load_audio(s, &dec_config, &len, &ptr);
         ma_mutex_lock(&audio_device.lock);
@@ -1025,7 +1031,7 @@ static void flatspin_update(float dt)
     if (msq_accum_size != 0) {
         #define process_track(__i) do { \
             int index = track_index(__i); \
-            float z = msq_accum[index] / msq_accum_size; \
+            float z = msq_accum[index] / msq_accum_size / SAMPLE_MAXVALSQ; \
             msq_sum[index] -= msq_gframe[index][msq_ptr[index]]; \
             msq_gframe[index][msq_ptr[index]] = z; \
             msq_sum[index] += z; \

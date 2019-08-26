@@ -281,7 +281,7 @@ int main(int argc, char *argv[])
 #endif
     glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
 
-    window = glfwCreateWindow(WIN_W, WIN_H, "bmflatspin", NULL, NULL);
+    window = glfwCreateWindow(WIN_W, WIN_H, "flatspin", NULL, NULL);
     if (window == NULL) {
         fprintf(stderr, "> <  Cannot create GLFW window\n");
         return 2;
@@ -820,6 +820,7 @@ static inline int track_index(int id)
         else if (id <= 0) return 9 - id;
         else return -1;
     }
+    return -1;  // Unreachable
 }
 
 static inline void track_attr(

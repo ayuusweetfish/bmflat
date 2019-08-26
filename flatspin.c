@@ -8,6 +8,8 @@
 #include "miniaudio/extras/dr_wav.h"
 #define DR_MP3_IMPLEMENTATION
 #include "miniaudio/extras/dr_mp3.h"
+#define STB_VORBIS_HEADER_ONLY
+#include "miniaudio/extras/stb_vorbis.c"
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio/miniaudio.h"
 
@@ -208,9 +210,9 @@ int main(int argc, char *argv[])
         return 0;
 #else
         // Open dialog
-        const char *filters[] = { "*.bms", "*.bme", "*.bml" };
+        const char *filters[] = { "*.bms", "*.bme", "*.bml", "*.pms" };
         const char *file = tinyfd_openFileDialog(
-            NULL, NULL, 3, filters, "Be-Music Source", 0);
+            NULL, NULL, 4, filters, "Be-Music Source", 0);
         if (file == NULL) return 0;
         flatspin_bmspath = file;
 #endif
@@ -485,6 +487,9 @@ static int msgs_count;
 static struct bm_chart chart;
 static struct bm_seq seq;
 
+static bool is_bms_sp;
+static bool is_9k;
+
 #define MSGS_FADE_OUT_TIME  0.2
 static float msgs_show_time = -MSGS_FADE_OUT_TIME;
 
@@ -750,10 +755,15 @@ static int flatspin_init()
     msgs_count = bm_load(&chart, src);
     free(src);
 
+    is_bms_sp = (chart.meta.player_num == 1);
+    is_9k = (chart.meta.player_num == 3);
+    if (!is_bms_sp && !is_9k) is_bms_sp = true;
+
     bm_to_seq(&chart, &seq);
     msgs_show_time = 10;
 
-    unit = 2.0f / (SCRATCH_WIDTH + KEY_WIDTH * 7 +
+    unit = 2.0f / (
+        (is_bms_sp ? (SCRATCH_WIDTH + KEY_WIDTH * 7) : KEY_WIDTH * 9) +
         BGTRACK_WIDTH * chart.tracks.background_count);
 
     play_pos = 0;
@@ -780,38 +790,75 @@ static int flatspin_init()
 
 static inline int track_index(int id)
 {
-    if (id == 16)
-        return 0;
-    else if (id >= 11 && id <= 19 && id != 17)
-        return (id < 17 ? id - 10 : id - 12);
-    else if (id <= 0)
-        return 8 - id;
-    else return -1;
+    if (is_bms_sp) {
+        if (id == 16)
+            return 0;
+        else if (id >= 11 && id <= 19 && id != 17)
+            return (id < 17 ? id - 10 : id - 12);
+        else if (id <= 0)
+            return 8 - id;
+        else return -1;
+    } else if (is_9k) {
+        if (id >= 11 && id <= 15) return id - 11;
+        else if (id >= 22 && id <= 25) return id - 17;
+        else if (id <= 0) return 9 - id;
+        else return -1;
+    }
 }
 
 static inline void track_attr(
     int id, float *x, float *w, float *r, float *g, float *b)
 {
-    if (id == 16) {
-        *x = -1.0f;
-        *w = unit * SCRATCH_WIDTH;
-        *r = 1.0f;
-        *g = 0.4f;
-        *b = 0.3f;
-    } else if (id >= 11 && id <= 19 && id != 17) {
-        int i = (id < 17 ? id - 11 : id - 13);
-        *x = -1.0f + unit * (SCRATCH_WIDTH + KEY_WIDTH * i);
-        *w = unit * KEY_WIDTH;
-        *r = i % 2 == 0 ? 0.85f : 0.5f;
-        *g = i % 2 == 0 ? 0.85f : 0.5f;
-        *b = i % 2 == 0 ? 0.85f : 1.0f;
-    } else if (id <= 0) {
-        int i = -id;
-        *x = -1.0f + unit * (SCRATCH_WIDTH + KEY_WIDTH * 7 + BGTRACK_WIDTH * i);
-        *w = unit * BGTRACK_WIDTH;
-        *r = i % 2 == 0 ? 1.0f : 0.6f;
-        *g = i % 2 == 0 ? 0.9f : 0.8f;
-        *b = i % 2 == 0 ? 0.6f : 0.5f;
+    if (is_bms_sp) {
+        if (id == 16) {
+            *x = -1.0f;
+            *w = unit * SCRATCH_WIDTH;
+            *r = 1.0f;
+            *g = 0.4f;
+            *b = 0.3f;
+        } else if (id >= 11 && id <= 19 && id != 17) {
+            int i = (id < 17 ? id - 11 : id - 13);
+            *x = -1.0f + unit * (SCRATCH_WIDTH + KEY_WIDTH * i);
+            *w = unit * KEY_WIDTH;
+            *r = i % 2 == 0 ? 0.85f : 0.5f;
+            *g = i % 2 == 0 ? 0.85f : 0.5f;
+            *b = i % 2 == 0 ? 0.85f : 1.0f;
+        } else if (id <= 0) {
+            int i = -id;
+            *x = -1.0f + unit * (SCRATCH_WIDTH + KEY_WIDTH * 7 + BGTRACK_WIDTH * i);
+            *w = unit * BGTRACK_WIDTH;
+            *r = i % 2 == 0 ? 1.0f : 0.6f;
+            *g = i % 2 == 0 ? 0.9f : 0.8f;
+            *b = i % 2 == 0 ? 0.6f : 0.5f;
+        }
+    } else if (is_9k) {
+        if ((id >= 11 && id <= 15) ||
+            (id >= 22 && id <= 25))
+        {
+            int i = (id <= 15 ? id - 11 : id - 17);
+            *x = -1.0f + unit * KEY_WIDTH * i;
+            *w = unit * KEY_WIDTH;
+            static const float track_colours[5][3] = {
+                {0.85f, 0.85f, 0.85f},
+                //{0.9f, 0.95f, 0.4f},
+                {1.0f, 0.9f, 0.6f},
+                //{0.4f, 0.8f, 0.5f},
+                {0.6f, 0.8f, 0.5f},
+                {0.5f, 0.5f, 1.0f},
+                {1.0f, 0.6f, 0.5f}
+            };
+            int j = (i <= 4 ? i : 8 - i);
+            *r = track_colours[j][0];
+            *g = track_colours[j][1];
+            *b = track_colours[j][2];
+        } else if (id <= 0) {
+            int i = -id;
+            *x = -1.0f + unit * (KEY_WIDTH * 9 + BGTRACK_WIDTH * i);
+            *w = unit * BGTRACK_WIDTH;
+            *r = i % 2 == 0 ? 0.8f : 0.7f;
+            *g = i % 2 == 0 ? 0.6f : 0.8f;
+            *b = i % 2 == 0 ? 0.8f : 0.3f;
+        }
     }
 }
 
@@ -971,8 +1018,13 @@ static void flatspin_update(float dt)
             msq_accum[index] = 0; \
         } while (0)
 
-        for (int i = 11; i <= 19; i++)
-            if (i != 17) process_track(i);
+        if (is_bms_sp) {
+            for (int i = 11; i <= 19; i++)
+                if (i != 17) process_track(i);
+        } else if (is_9k) {
+            for (int i = 11; i <= 15; i++) process_track(i);
+            for (int i = 22; i <= 25; i++) process_track(i);
+        }
         for (int i = 0; i < chart.tracks.background_count; i++)
             process_track(-i);
 
@@ -985,8 +1037,13 @@ static void flatspin_update(float dt)
 
     _vertices_count = 0;
 
-    for (int i = 11; i <= 19; i++)
-        if (i != 17) draw_track_background(i);
+    if (is_bms_sp) {
+        for (int i = 11; i <= 19; i++)
+            if (i != 17) draw_track_background(i);
+    } else if (is_9k) {
+        for (int i = 11; i <= 15; i++) draw_track_background(i);
+        for (int i = 22; i <= 25; i++) draw_track_background(i);
+    }
     for (int i = 0; i < chart.tracks.background_count; i++)
         draw_track_background(-i);
 

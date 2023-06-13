@@ -22,11 +22,12 @@ char *read_file(const char *path)
     return buf;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
-    char *src = read_file("sample.bms");
+    const char *path = (argc >= 2 ? argv[1] : "sample.bms");
+    char *src = read_file(path);
     if (src == NULL) {
-        puts("> <");
+        printf("Cannot open %s\n", path);
         return 1;
     }
 
@@ -53,7 +54,7 @@ int main()
     printf("Play Background: %s\n", chart.meta.back_bmp);
     putchar('\n');
 
-    const char *base36 = "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ" + 1;
+    const char *base36 = &"-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"[1];
     for (int i = 0; i < 1296; i++)
         if (chart.tables.wav[i] != NULL)
             printf("Wave %c%c: %s\n",

@@ -141,7 +141,7 @@ static inline void add_rect_tex(
 #define TEXT_W  (1.0f / 30)
 #endif
 
-#define TEXT_H  (TEXT_W * 1.2 * ((double)WIN_W / WIN_H))
+#define TEXT_H  (TEXT_W * 1.2f * ((float)WIN_W / WIN_H))
 
 static inline void add_char(
     float x, float y, float r, float g, float b, float a, char ch)
@@ -443,7 +443,8 @@ int main(int argc, char *argv[])
 
     // -- Event/render loop --
 
-    float last_time = glfwGetTime(), cur_time;
+    double updated_until = glfwGetTime();
+    float step_dur = 1.0f / 120;
 
     glfwSetFramebufferSizeCallback(window, glfw_fbsz_callback);
 
@@ -453,9 +454,11 @@ int main(int argc, char *argv[])
         glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        cur_time = glfwGetTime();
-        flatspin_update(cur_time - last_time);
-        last_time = cur_time;
+        double cur_time = glfwGetTime();
+        while (updated_until < cur_time) {
+          flatspin_update(step_dur);
+          updated_until += step_dur;
+        }
 
         glBufferData(GL_ARRAY_BUFFER,
             _vertices_count * sizeof(struct vertex), _vertices, GL_STREAM_DRAW);
@@ -561,8 +564,7 @@ static bool playing = false;
 static float current_bpm;   // Will be re-initialized on playback start
 static int event_ptr;
 
-static float delta_ss_rate; // For easing of scroll speed changes
-static float delta_ss_time;
+static float ss_target;
 #define SS_MIN  (0.1f / 48)
 #define SS_MAX  (1.2f / 48)
 #define SS_DELTA    (0.05f / 48)
@@ -600,21 +602,24 @@ static void audio_data_callback(
 
 static inline void delta_ss_step(float dt)
 {
-    if (delta_ss_time <= 0) return;
-    if (dt > delta_ss_time) dt = delta_ss_time;
-    scroll_speed += delta_ss_rate * dt;
-    delta_ss_time -= dt;
-    if (scroll_speed < SS_MIN) scroll_speed = SS_MIN;
-    if (scroll_speed > SS_MAX) scroll_speed = SS_MAX;
+    float dist = ss_target - scroll_speed;
+    if (dist == 0) return;
+    float delta = dist * dt * 10.0f;
+    if (fabs(delta) < 1e-6) delta = (dist > 0 ? 1e-6 : -1e-6);
+    if (fabs(delta) >= fabs(dist)) {
+      scroll_speed = ss_target;
+    } else {
+      scroll_speed += delta;
+    }
     fwd_range = (1.1 - HITLINE_POS) / scroll_speed;
     bwd_range = (HITLINE_POS + 1.1) / scroll_speed;
 }
 
-static inline void delta_ss_submit(float delta, float time)
+static inline void delta_ss_submit(float delta)
 {
-    float total_delta = delta + delta_ss_rate * delta_ss_time;
-    delta_ss_rate = total_delta / time;
-    delta_ss_time = time;
+    ss_target += delta;
+    if (ss_target < SS_MIN) ss_target = SS_MIN;
+    if (ss_target > SS_MAX) ss_target = SS_MAX;
 }
 
 #define PARTICLE_SIZE   0.003
@@ -793,7 +798,9 @@ static int flatspin_init()
     fwd_range = (1.1 - HITLINE_POS) / scroll_speed;
     bwd_range = (HITLINE_POS + 1.1) / scroll_speed;
 
-    delta_ss_rate = delta_ss_time = 0;
+    ss_target = SS_INITIAL;
+
+    srand(0);
 
     wave_count = 0;
     for (int i = 0; i < BM_INDEX_MAX; i++)
@@ -916,10 +923,10 @@ static void flatspin_update(float dt)
 
     if (keys[2] == GLFW_PRESS && keys_prev[2] == GLFW_RELEASE) {
         // Left: scroll-
-        delta_ss_submit(-SS_DELTA, 0.1);
+        delta_ss_submit(-SS_DELTA);
     } else if (keys[3] == GLFW_PRESS && keys_prev[3] == GLFW_RELEASE) {
         // Right: scroll+
-        delta_ss_submit(+SS_DELTA, 0.1);
+        delta_ss_submit(+SS_DELTA);
     }
 
     int mul =

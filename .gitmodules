@@ -1,6 +1,6 @@
 [submodule "miniaudio"]
-	path = miniaudio
+	path = examples/miniaudio
 	url = https://github.com/dr-soft/miniaudio.git
 [submodule "tinyfiledialogs"]
-	path = tinyfiledialogs
+	path = examples/tinyfiledialogs
 	url = https://git.code.sf.net/p/tinyfiledialogs/code

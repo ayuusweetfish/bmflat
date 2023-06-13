@@ -141,7 +141,7 @@ static inline void add_rect_tex(
 #define TEXT_W  (1.0f / 30)
 #endif
 
-#define TEXT_H  (TEXT_W * 2)
+#define TEXT_H  (TEXT_W * 1.2 * ((double)WIN_W / WIN_H))
 
 static inline void add_char(
     float x, float y, float r, float g, float b, float a, char ch)

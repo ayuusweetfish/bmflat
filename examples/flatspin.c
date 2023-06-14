@@ -261,7 +261,7 @@ int main(int argc, char *argv[])
     dev_config.dataCallback = (ma_device_callback_proc)audio_data_callback;
 
     if (ma_device_init(NULL, &dev_config, &audio_device) != MA_SUCCESS ||
-        ma_device_start(&audio_device) != MA_SUCCESS)
+        (false && ma_device_start(&audio_device) != MA_SUCCESS))
     {
         fprintf(stderr, "> <  Cannot start audio playback");
         return 3;
@@ -536,6 +536,11 @@ static ma_uint64 pcm_len[BM_INDEX_MAX] = { 0 };
 static int pcm_track[BM_INDEX_MAX];
 static ma_uint64 pcm_pos[BM_INDEX_MAX];
 
+// These are updatd by the display deterministically,
+// independent from the audio thread
+static int pcm_track_disp[BM_INDEX_MAX];
+static ma_uint64 pcm_pos_disp[BM_INDEX_MAX];
+
 #define TOTAL_TRACKS    (8 + BM_BGM_TRACKS)
 #define RMS_WINDOW_SIZE 5
 static float msq_gframe[TOTAL_TRACKS][RMS_WINDOW_SIZE] = {{ 0 }};
@@ -586,14 +591,11 @@ static void audio_data_callback(
                 SAMPLE_TYPE rsmp = pcm[i][(start + j) * 2 + 1];
                 output[j * 2] += lsmp * GAIN;
                 output[j * 2 + 1] += rsmp * GAIN;
-                msq_accum[track] += (float)lsmp * lsmp + (float)rsmp * rsmp;
             }
             pcm_pos[i] += j;
             if (pcm_pos[i] >= pcm_len[i]) pcm_track[i] = -1;
         }
     }
-
-    msq_accum_size += nframes;
 
     ma_mutex_unlock(&device->lock);
 
@@ -604,7 +606,7 @@ static inline void delta_ss_step(float dt)
 {
     float dist = ss_target - scroll_speed;
     if (dist == 0) return;
-    float delta = dist * dt * 10.0f;
+    float delta = dist * dt * 2.5f;
     if (fabs(delta) < 1e-6) delta = (dist > 0 ? 1e-6 : -1e-6);
     if (fabs(delta) >= fabs(dist)) {
       scroll_speed = ss_target;
@@ -760,8 +762,8 @@ static ma_thread_result MA_THREADCALL flatspin_load_audio(void *data)
     }
 
     for (int i = 0; i < BM_INDEX_MAX; i++) {
-        pcm_track[i] = -1;
-        pcm_pos[i] = 0;
+        pcm_track[i] = pcm_track_disp[i] = -1;
+        pcm_pos[i] = pcm_pos_disp[i] = 0;
     }
 
     ma_mutex_lock(&audio_device.lock);
@@ -975,7 +977,8 @@ static void flatspin_update(float dt)
     if (play_cut || play_started) {
         // Stop all sounds
         ma_mutex_lock(&audio_device.lock);
-        for (int i = 0; i < BM_INDEX_MAX; i++) pcm_track[i] = -1;
+        for (int i = 0; i < BM_INDEX_MAX; i++)
+            pcm_track[i] = pcm_track_disp[i] = -1;
         ma_mutex_unlock(&audio_device.lock);
     }
 
@@ -988,13 +991,39 @@ static void flatspin_update(float dt)
 
     delta_ss_step(dt);
 
-    ma_mutex_lock(&audio_device.lock);
+    // Update RMS display
+    // These do not need the lock since no concurrent access may happen
+    // (`pcm` and `pcm_len` are not modified after `pcm_loaded` is set
+    static float frac_samples = 0;
+    frac_samples += dt * 44100;
+    int nframes = (int)frac_samples;
+    frac_samples -= nframes;
+    if (pcm_loaded) {
+        // XXX: Reduce duplication?
+        for (int i = 0; i < BM_INDEX_MAX; i++) {
+            int track = pcm_track_disp[i];
+            if (track != -1) {
+                int start = pcm_pos_disp[i];
+                int j;
+                for (j = 0; j < nframes && start + j < pcm_len[i]; j++) {
+                    SAMPLE_TYPE lsmp = pcm[i][(start + j) * 2];
+                    SAMPLE_TYPE rsmp = pcm[i][(start + j) * 2 + 1];
+                    msq_accum[track] += (float)lsmp * lsmp + (float)rsmp * rsmp;
+                }
+                pcm_pos_disp[i] += j;
+                if (pcm_pos_disp[i] >= pcm_len[i]) pcm_track_disp[i] = -1;
+            }
+        }
+        msq_accum_size += nframes;
+    }
 
     if (pcm_loaded) {
         // Fade out log messages on any movement
         if ((moved || play_started) && msgs_show_time > 0) msgs_show_time = 0;
         if (msgs_show_time > -MSGS_FADE_OUT_TIME) msgs_show_time -= dt;
     }
+
+    ma_mutex_lock(&audio_device.lock);
 
     if (playing) {
         play_pos += dt * current_bpm * (48.0f / 60.0f);
@@ -1009,17 +1038,33 @@ static void flatspin_update(float dt)
                 break;
             case BM_NOTE:
             case BM_NOTE_LONG:
-                pcm_track[ev.value] = track_index(ev.track);
-                pcm_pos[ev.value] = 0;
+                pcm_track[ev.value] = pcm_track_disp[ev.value] =
+                  track_index(ev.track);
+                pcm_pos[ev.value] = pcm_pos_disp[ev.value] = 0;
                 // Create particles
                 track_attr(ev.track, &x, &w, &r, &g, &b);
                 add_particles_on_line(x, w, r, g, b);
+                break;
+            case BM_NOTE_OFF:
+                if (ev.track == 14 && ev.pos == 17792)
+                    ss_target = SS_MIN;
+                break;
+            case BM_BARLINE:
+                if (ev.value == 8) {
+                    ss_target = SS_INITIAL - SS_DELTA * 4;
+                } else if (ev.value == 73) {
+                    ss_target = SS_INITIAL - SS_DELTA * 5;
+                } else if (ev.value == 88) {
+                    ss_target = SS_INITIAL - SS_DELTA * 2;
+                }
                 break;
             default: break;
             }
             event_ptr++;
         }
     }
+
+    ma_mutex_unlock(&audio_device.lock);
 
     if (play_pos < 0) {
         play_pos = 0;
@@ -1060,8 +1105,6 @@ static void flatspin_update(float dt)
 
         msq_accum_size = 0;
     }
-
-    ma_mutex_unlock(&audio_device.lock);
 
     // -- Drawing --
 

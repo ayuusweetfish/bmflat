@@ -482,7 +482,8 @@ int main(int argc, char *argv[])
         // F=$(mktemp -u -t bmflat)
         // mkfifo $F
         // flatspin >$F
-        // ffmpeg -f rawvideo -pixel_format rgb24 -video_size 1920x1080 -framerate 60 -t 142 -i $F -vf "scale=960x640" -pix_fmt yuv420p -crf 27 output.mp4
+        // ffmpeg -f rawvideo -pixel_format rgb24 -video_size 1920x1080 -framerate 60 -t 146 -i $F -vf "scale=960x640" -pix_fmt yuv420p -crf 25 output.mp4
+        // ffmpeg -i bmflat.mp4 -i epilogue.wav -t 4 -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -filter_complex "[2:a][1:a]concat=n=2:v=0:a=1" -c:v copy -b:a 80k bmflat-demo.mp4
         for (int r = RECORD_H - 1; r >= 0; r--)
             fwrite(scr_buf + (r * RECORD_W * 3), RECORD_W * 3, 1, stdout);
         fflush(stdout);
@@ -683,9 +684,8 @@ static inline void add_glow(float T, float x, float w)
     glows[glow_count++] = (struct glow) { x, w, T };
 }
 
-static inline void add_particles_on_line(float x, float w, float r, float g, float b)
+static inline void add_particles_on_line(float T, float x, float w, float r, float g, float b)
 {
-    float T = glfwGetTime();
     int number = (int)(w / 0.01);
     for (int i = 0; i < number; i++) {
         float dx = (float)rand() / RAND_MAX * w;
@@ -1021,6 +1021,9 @@ static void flatspin_update(float dt)
 
     // -- Updates --
 
+    static float T = 0;
+    T += dt;
+
     delta_ss_step(dt);
 
     // Update RMS display
@@ -1075,7 +1078,7 @@ static void flatspin_update(float dt)
                 pcm_pos[ev.value] = pcm_pos_disp[ev.value] = 0;
                 // Create particles
                 track_attr(ev.track, &x, &w, &r, &g, &b);
-                add_particles_on_line(x, w, r, g, b);
+                add_particles_on_line(T, x, w, r, g, b);
                 break;
             case BM_NOTE_OFF:
                 if (ev.track == 14 && ev.pos == 17792)
@@ -1100,9 +1103,9 @@ static void flatspin_update(float dt)
         play_pos = 0;
     } else if (play_pos > seq.events[seq.event_count - 1].pos) {
         if (playing) {
-            add_particles_on_line(-1, 2, 0.6, 0.7, 0.4);
-            add_particles_on_line(-1, 2, 0.6, 0.9, 0.4);
-            add_particles_on_line(-1, 2, 0.5, 1.0, 0.4);
+            add_particles_on_line(T, -1, 2, 0.6, 0.7, 0.4);
+            add_particles_on_line(T, -1, 2, 0.6, 0.9, 0.4);
+            add_particles_on_line(T, -1, 2, 0.5, 1.0, 0.4);
         }
         play_pos = seq.events[seq.event_count - 1].pos;
         playing = false;
@@ -1216,7 +1219,7 @@ static void flatspin_update(float dt)
 
     // Hit line
     add_rect(-1, HITLINE_POS, 2, HITLINE_H, 1.0, 0.7, 0.4, false);
-    update_and_draw_particles(glfwGetTime());
+    update_and_draw_particles(T);
 
     // Messages from the parser
     if (msgs_show_time > -MSGS_FADE_OUT_TIME) {

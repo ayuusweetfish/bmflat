@@ -482,7 +482,7 @@ int main(int argc, char *argv[])
         // F=$(mktemp -u -t bmflat)
         // mkfifo $F
         // flatspin >$F
-        // ffmpeg -f rawvideo -pixel_format rgb24 -video_size 1920x1080 -framerate 60 -t 146 -i $F -vf "scale=960x640" -pix_fmt yuv420p -crf 25 output.mp4
+        // ffmpeg -f rawvideo -pixel_format rgb24 -video_size 1920x1080 -framerate 60 -t 146 -i $F -vf "scale=800x450" -pix_fmt yuv420p -crf 25 output.mp4
         // ffmpeg -i bmflat.mp4 -i epilogue.wav -t 4 -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -filter_complex "[2:a][1:a]concat=n=2:v=0:a=1" -c:v copy -b:a 80k bmflat-demo.mp4
         for (int r = RECORD_H - 1; r >= 0; r--)
             fwrite(scr_buf + (r * RECORD_W * 3), RECORD_W * 3, 1, stdout);
@@ -649,7 +649,7 @@ static inline void delta_ss_submit(float delta)
     if (ss_target > SS_MAX) ss_target = SS_MAX;
 }
 
-#define PARTICLE_SIZE   0.004
+#define PARTICLE_SIZE   0.0035
 #define PARTICLE_LIFE   0.5
 #define PARTICLES_MAX   1024
 #define GLOW_LIFE       0.75

@@ -448,21 +448,45 @@ int main(int argc, char *argv[])
 
     glfwSetFramebufferSizeCallback(window, glfw_fbsz_callback);
 
+    const int RECORD_W = WIN_W * 2;
+    const int RECORD_H = WIN_H * 2;
+    unsigned char *scr_buf = (unsigned char *)malloc(RECORD_W * RECORD_H * 3);
+    int record_frame_num = 0;
+    fprintf(stderr, "^ ^  Screen recording size is %dx%d\n", RECORD_W, RECORD_H);
+
     while (!glfwWindowShouldClose(window)) {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) break;
 
         glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        double cur_time = glfwGetTime();
-        while (updated_until < cur_time) {
-          flatspin_update(step_dur);
-          updated_until += step_dur;
-        }
+        for (int i = 0; i < 2; i++) flatspin_update(step_dur);
 
         glBufferData(GL_ARRAY_BUFFER,
             _vertices_count * sizeof(struct vertex), _vertices, GL_STREAM_DRAW);
         glDrawArrays(GL_TRIANGLES, 0, _vertices_count);
+
+        // Read pixels
+        glFlush();
+        glReadPixels(
+          0, 0, RECORD_W, RECORD_H, GL_RGB, GL_UNSIGNED_BYTE,
+          scr_buf);
+        /* if (record_frame_num == 0) {
+          FILE *f = fopen("1.ppm", "w");
+          fprintf(f, "P6\n%d %d\n255\n", RECORD_W, RECORD_H);
+          for (int r = RECORD_H - 1; r >= 0; r--)
+              for (int c = 0; c < RECORD_W * 3; c++)
+                  fputc(scr_buf[r * RECORD_W * 3 + c], f);
+          fclose(f);
+        } */
+        // F=$(mktemp -u -t bmflat)
+        // mkfifo $F
+        // flatspin >$F
+        // ffmpeg -f rawvideo -pixel_format rgb24 -video_size 1920x1080 -framerate 60 -t 142 -i $F -vf "scale=960x640" -pix_fmt yuv420p -crf 27 output.mp4
+        for (int r = RECORD_H - 1; r >= 0; r--)
+            fwrite(scr_buf + (r * RECORD_W * 3), RECORD_W * 3, 1, stdout);
+        fflush(stdout);
+        record_frame_num++;
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -624,7 +648,7 @@ static inline void delta_ss_submit(float delta)
     if (ss_target > SS_MAX) ss_target = SS_MAX;
 }
 
-#define PARTICLE_SIZE   0.003
+#define PARTICLE_SIZE   0.004
 #define PARTICLE_LIFE   0.5
 #define PARTICLES_MAX   1024
 #define GLOW_LIFE       0.75
@@ -961,6 +985,14 @@ static void flatspin_update(float dt)
         play_started = playing = !playing;
     }
 
+    static float autoplay_time = 0;
+    float last_autoplay_time = autoplay_time;
+    autoplay_time += dt;
+    if (last_autoplay_time < 4 && autoplay_time >= 4) {
+        play_cut = playing;
+        play_started = playing = true;
+    }
+
     if (play_started) {
         // Current BPM needs to be updated
         // BGA needs an update as well, but our application doesn't display BGAs
@@ -1052,8 +1084,6 @@ static void flatspin_update(float dt)
             case BM_BARLINE:
                 if (ev.value == 8) {
                     ss_target = SS_INITIAL - SS_DELTA * 4;
-                } else if (ev.value == 73) {
-                    ss_target = SS_INITIAL - SS_DELTA * 5;
                 } else if (ev.value == 88) {
                     ss_target = SS_INITIAL - SS_DELTA * 2;
                 }

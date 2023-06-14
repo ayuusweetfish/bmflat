@@ -36,6 +36,9 @@ target('flatspin')
     elseif is_plat('windows') then
         add_links('user32', 'ole32', 'comdlg32', 'shell32', 'gdi32', 'opengl32')
     end
+    if is_mode('release') then
+        set_optimize('faster')
+    end
     add_includedirs('.')
     add_includedirs('examples')
     add_headerfiles('bmflat.h')

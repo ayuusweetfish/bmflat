@@ -517,6 +517,7 @@ static bool is_9k;
 
 #define MSGS_FADE_OUT_TIME  0.2
 static float msgs_show_time = -MSGS_FADE_OUT_TIME;
+static float pse_warning_time = -MSGS_FADE_OUT_TIME;
 
 static bool show_stats = false;
 static int fps_accum = 0, fps_record = 0;
@@ -788,6 +789,7 @@ static int flatspin_init()
 
     bm_to_seq(&chart, &seq);
     msgs_show_time = 10;
+    pse_warning_time = 10;
 
     unit = 2.0f / (
         (is_bms_sp ? (SCRATCH_WIDTH + KEY_WIDTH * 7) : KEY_WIDTH * 9) +
@@ -993,7 +995,9 @@ static void flatspin_update(float dt)
     if (pcm_loaded) {
         // Fade out log messages on any movement
         if ((moved || play_started) && msgs_show_time > 0) msgs_show_time = 0;
+        if (play_started && pse_warning_time > 0) pse_warning_time = 0;
         if (msgs_show_time > -MSGS_FADE_OUT_TIME) msgs_show_time -= dt;
+        if (pse_warning_time > -MSGS_FADE_OUT_TIME) pse_warning_time -= dt;
     }
 
     if (playing) {
@@ -1225,6 +1229,14 @@ static void flatspin_update(float dt)
             }
         }
         ma_mutex_unlock(&audio_device.lock);
+    }
+
+    if (pse_warning_time > -MSGS_FADE_OUT_TIME) {
+        float alpha = (pse_warning_time > 0 ? 1 : 1 + pse_warning_time / MSGS_FADE_OUT_TIME);
+        add_text(-0.95, -0.95 + TEXT_H * 2.25, 0.6, 0.6, 0.4, alpha,
+            "Playback may not be suitable for viewers with");
+        add_text(-0.95, -0.95 + TEXT_H * 0.5, 0.6, 0.6, 0.4, alpha,
+            "photosensitive epilepsy. User discretion is advised.");
     }
 
     if (show_stats) {

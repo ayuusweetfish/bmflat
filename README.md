@@ -8,7 +8,7 @@
 
 See `examples/flattest.c` for another simplistic example which dumps all metadata and content of a given file.
 
-`examples/flatspin.c` is a playback and visualisation tool for BMS music tracks. Build the program with GLEW and GLFW libraries, or simply use [xmake](https://xmake.io/). Use the arrow keys and the Shift key for navigation.
+`examples/flatspin.c` is a playback and visualisation tool for BMS music tracks. Build the program with GLEW and GLFW libraries, or simply use [xmake](https://xmake.io/). Use the arrow keys and the Shift key for navigation, and the Space key for playback. (⚠️ Efforts have been made to reduce triggers for photosensitive epilepsy, but if you are affected, please still be cautious with experimenting.)
 
 ## License
 

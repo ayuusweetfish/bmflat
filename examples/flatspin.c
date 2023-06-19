@@ -494,7 +494,7 @@ int main(int argc, char *argv[])
         // F=$(mktemp -u -t bmflat)
         // mkfifo $F
         // flatspin >$F
-        // ffmpeg -f rawvideo -pixel_format rgb24 -video_size 1920x1080 -framerate 60 -t 146 -i $F -vf "scale=800x450" -pix_fmt yuv420p -crf 25 output.mp4
+        // ffmpeg -f rawvideo -pixel_format rgb24 -video_size 1920x1080 -framerate 60 -t 146 -i $F -vf "scale=800x450" -pix_fmt yuv420p -crf 25 bmflat.mp4
         // ffmpeg -i bmflat.mp4 -i epilogue.wav -t 4 -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -filter_complex "[2:a][1:a]concat=n=2:v=0:a=1" -c:v copy -b:a 80k bmflat-demo.mp4
         for (int r = RECORD_H - 1; r >= 0; r--)
             fwrite(scr_buf + (r * RECORD_W * 3), RECORD_W * 3, 1, stdout);
@@ -554,6 +554,7 @@ static bool is_9k;
 
 #define MSGS_FADE_OUT_TIME  0.2
 static float msgs_show_time = -MSGS_FADE_OUT_TIME;
+static float pse_warning_time = 5;
 
 static bool flash_enabled = false;
 static bool flash_enabled_saved = false;
@@ -1085,6 +1086,7 @@ static void flatspin_update(float dt)
         if (play_started && flash_warning_time > 0) flash_warning_time = 0;
         if (msgs_show_time > -MSGS_FADE_OUT_TIME) msgs_show_time -= dt;
         if (flash_warning_time > -MSGS_FADE_OUT_TIME) flash_warning_time -= dt;
+        if (pse_warning_time > -MSGS_FADE_OUT_TIME) pse_warning_time -= dt;
     }
 
     ma_mutex_lock(&audio_device.lock);
@@ -1348,6 +1350,14 @@ static void flatspin_update(float dt)
             add_text(-0.95, -0.95 + TEXT_H * 0.5, 1.0, 0.95, 0.9, alpha,
                 "Flash mode off");
         }
+    }
+
+    if (pse_warning_time > -MSGS_FADE_OUT_TIME) {
+        float alpha = (pse_warning_time > 0 ? 1 : 1 + pse_warning_time / MSGS_FADE_OUT_TIME);
+        add_text(-0.95, -0.95 + TEXT_H * 2.25, 0.6, 0.6, 0.4, alpha,
+            "This video contains mild flashing lights and");
+        add_text(-0.95, -0.95 + TEXT_H * 0.5, 0.6, 0.6, 0.4, alpha,
+            "repetitive patterns. Viewer discretion is advised.");
     }
 
     if (show_stats) {

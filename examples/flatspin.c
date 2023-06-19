@@ -122,6 +122,18 @@ static inline void add_rect_a(
     add_vertex_a(x, y + h, r, g, b, a);
 }
 
+static inline void add_rect_grad(
+    float x, float y, float w, float h,
+    float r, float g, float b, float a)
+{
+    add_vertex_a(x, y + h, r, g, b, a);
+    add_vertex_a(x, y, r, g, b, 0);
+    add_vertex_a(x + w, y, r, g, b, 0);
+    add_vertex_a(x + w, y, r, g, b, 0);
+    add_vertex_a(x + w, y + h, r, g, b, a);
+    add_vertex_a(x, y + h, r, g, b, a);
+}
+
 static inline void add_rect_tex(
     float x, float y, float w, float h,
     float r, float g, float b, float a,
@@ -543,6 +555,11 @@ static bool is_9k;
 #define MSGS_FADE_OUT_TIME  0.2
 static float msgs_show_time = -MSGS_FADE_OUT_TIME;
 
+static bool flash_enabled = false;
+static bool flash_enabled_saved = false;
+static float flash_warning_time = -MSGS_FADE_OUT_TIME;
+static bool flash_warning_replay;
+
 static bool show_stats = false;
 static int fps_accum = 0, fps_record = 0;
 static float fps_record_time = 0;
@@ -923,8 +940,10 @@ static inline void draw_track_background(int id)
     float x, w, r, g, b;
     track_attr(id, &x, &w, &r, &g, &b);
     float rms = sqrtf(msq_sum[track_index(id)] / RMS_WINDOW_SIZE);
-    float l = 0.15 + 0.75 * sqrtf(rms);
+    float l = 0.15 + (flash_enabled ? 0.75 * sqrtf(rms) : 0);
     add_rect(x, -1, w, 2, r * l, g * l, b * l, false);
+    if (!flash_enabled)
+        add_rect_grad(x, HITLINE_POS - (HITLINE_POS + 1) * rms, w, (HITLINE_POS + 1) * rms, r, g, b, 0.2 + 0.5 * rms);
 }
 
 static void flatspin_update(float dt)
@@ -1013,8 +1032,16 @@ static void flatspin_update(float dt)
             pcm_track[i] = pcm_track_disp[i] = -1;
         ma_mutex_unlock(&audio_device.lock);
     }
+    if (play_started)
+        flash_enabled = flash_enabled_saved;
 
-    show_stats ^= (keys[6] == GLFW_PRESS && keys_prev[6] == GLFW_RELEASE);
+    if (keys[6] == GLFW_PRESS && keys_prev[6] == GLFW_RELEASE) {
+        flash_enabled_saved = !flash_enabled_saved;
+        if (!flash_enabled_saved) flash_enabled = false;
+        flash_warning_time = 5;
+        flash_warning_replay = playing;
+    }
+
     show_stats ^= (keys[7] == GLFW_PRESS && keys_prev[7] == GLFW_RELEASE);
 
     memcpy(keys_prev, keys, sizeof keys);
@@ -1055,7 +1082,9 @@ static void flatspin_update(float dt)
     if (pcm_loaded) {
         // Fade out log messages on any movement
         if ((moved || play_started) && msgs_show_time > 0) msgs_show_time = 0;
+        if (play_started && flash_warning_time > 0) flash_warning_time = 0;
         if (msgs_show_time > -MSGS_FADE_OUT_TIME) msgs_show_time -= dt;
+        if (flash_warning_time > -MSGS_FADE_OUT_TIME) flash_warning_time -= dt;
     }
 
     ma_mutex_lock(&audio_device.lock);
@@ -1301,6 +1330,24 @@ static void flatspin_update(float dt)
             }
         }
         ma_mutex_unlock(&audio_device.lock);
+    }
+
+    if (flash_warning_time > -MSGS_FADE_OUT_TIME) {
+        float alpha = (flash_warning_time > 0 ? 1 : 1 + flash_warning_time / MSGS_FADE_OUT_TIME);
+        if (flash_enabled_saved) {
+            add_text(-0.95, -0.95 + TEXT_H * 4, 0.6, 0.6, 0.4, alpha,
+                "This may be especially unsuitable for viewers with");
+            add_text(-0.95, -0.95 + TEXT_H * 2.25, 0.6, 0.6, 0.4, alpha,
+                "photosensitive epilepsy.");
+            if (flash_warning_replay)
+                add_text(-0.95 + TEXT_W * 25, -0.95 + TEXT_H * 2.25, 0.5, 0.5, 0.5, alpha,
+                    "Restart playback to take effect.");
+            add_text(-0.95, -0.95 + TEXT_H * 0.5, 1.0, 0.95, 0.9, alpha,
+                "Flash mode on");
+        } else {
+            add_text(-0.95, -0.95 + TEXT_H * 0.5, 1.0, 0.95, 0.9, alpha,
+                "Flash mode off");
+        }
     }
 
     if (show_stats) {
